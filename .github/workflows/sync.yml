@@ -14,13 +14,23 @@ jobs:
                 cache: 'pip'
             - name: Install dependencies
               run: make install-deps
-            - name: pip3 install -r requirements.txt
+            - name: Download database
               run: curl -o flights.db -sL https://github.com/AustinDizzy/wvfoia-sync/releases/latest/download/wvfoia.db
+            - name: Store initial latest ID
+              id: initial_id
+              run: echo "initial_id=$(sqlite3 wvfoia.db 'SELECT id FROM entries ORDER BY id DESC LIMIT 1;')" >> $GITHUB_ENV
             - name: Run sync in crawl mode
               run: python3 main.py --db wvfoia.db --mode crawl
-            - name: Get latest ID and change LATEST_ENTRY_ID in main.py to match
+            - name: Check for new entries
               run: |
-                nl="LATEST_ENTRY_ID = $(sqlite3 wvfoia.db 'SELECT id FROM requests ORDER BY id DESC LIMIT 1;')"
+                new_id=$(sqlite3 wvfoia.db 'SELECT id FROM entries ORDER BY id DESC LIMIT 1;')
+                if [ "$new_id" -eq "${{ env.initial_id }}" ]; then
+                  echo "No new data. Exiting."
+                  exit 0
+                fi
+            - name: Update LATEST_ENTRY_ID and README
+              run: |
+                nl="LATEST_ENTRY_ID = $new_id"
                 sed -i "s/LATEST_ENTRY_ID = [0-9]\+/$(nl)/" main.py
                 nr="Latest Release ($(date +'%Y.%m.%d'))"
                 sed -i "s/Latest Release ([0-9]\+\.[0-9]\+\.[0-9]\+)/$(nr)/" README.md
@@ -31,6 +41,6 @@ jobs:
                 git push
             - name: Create new release
               run: |
-                gh release create $(date +%Y.%m.%d) --title $(date +%Y-%m-%d) --notes "New release for $(date +%Y-%m-%d)" --target master wvfoia.db
+                gh release create $(date +%Y.%m.%d) --title "v1.0.$(date +%Y-%m-%d)" --notes "New release for $(date +%Y-%m-%d)" --target master wvfoia.db
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
