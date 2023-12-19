@@ -41,6 +41,8 @@ jobs:
                 git add main.py README.md
                 git commit -m "Update LATEST_ENTRY_ID for $(date +%Y-%m-%d)"
                 git push
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Create new release
               run: |
                 gh release create "v1.0.$(date +%Y-%m-%d)" --title "v1.0.$(date +%Y-%m-%d)" --notes "New release for $(date +%Y-%m-%d)" --target master wvfoia.db
