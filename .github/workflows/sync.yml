@@ -15,7 +15,7 @@ jobs:
             - name: Install dependencies
               run: pip3 install -r requirements.txt
             - name: Download database
-              run: curl -o flights.db -sL https://github.com/AustinDizzy/wvfoia-sync/releases/latest/download/wvfoia.db
+              run: curl -o wvfoia.db -sL https://github.com/AustinDizzy/wvfoia-sync/releases/latest/download/wvfoia.db
             - name: Store initial latest ID
               id: initial_id
               run: echo "initial_id=$(sqlite3 wvfoia.db 'SELECT id FROM entries ORDER BY id DESC LIMIT 1;')" >> $GITHUB_ENV
