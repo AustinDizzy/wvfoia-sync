@@ -119,6 +119,8 @@ def sync_entry(id: int) -> dict | None:
     Syncs the entry with the given ID from the web database to the local database.
     """
     entry = get_entry(id)
+    if entry is None:
+        return None
 
     if not does_entry_exist(id):
         return save_entry(entry)
