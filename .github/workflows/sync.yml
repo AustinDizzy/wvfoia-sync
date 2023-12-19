@@ -1,0 +1,36 @@
+on:
+    workflow_dispatch:
+    schedule:
+        # Run everyday at 4:00 AM Eastern Time (9:00 AM UTC)
+      - cron: '0 9 * * *'
+
+jobs:
+    sync:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                cache: 'pip'
+            - name: Install dependencies
+              run: make install-deps
+            - name: pip3 install -r requirements.txt
+              run: curl -o flights.db -sL https://github.com/AustinDizzy/wvfoia-sync/releases/latest/download/wvfoia.db
+            - name: Run sync in crawl mode
+              run: python3 main.py --db wvfoia.db --mode crawl
+            - name: Get latest ID and change LATEST_ENTRY_ID in main.py to match
+              run: |
+                nl="LATEST_ENTRY_ID = $(sqlite3 wvfoia.db 'SELECT id FROM requests ORDER BY id DESC LIMIT 1;')"
+                sed -i "s/LATEST_ENTRY_ID = [0-9]\+/$(nl)/" main.py
+                nr="Latest Release ($(date +'%Y.%m.%d'))"
+                sed -i "s/Latest Release ([0-9]\+\.[0-9]\+\.[0-9]\+)/$(nr)/" README.md
+            - name: Commit and push changes
+              run: |
+                git add main.py README.md
+                git commit -m "Update LATEST_ENTRY_ID for $(date +%Y-%m-%d)"
+                git push
+            - name: Create new release
+              run: |
+                gh release create $(date +%Y.%m.%d) --title $(date +%Y-%m-%d) --notes "New release for $(date +%Y-%m-%d)" --target master wvfoia.db
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
