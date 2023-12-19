@@ -30,10 +30,10 @@ jobs:
                 fi
             - name: Update LATEST_ENTRY_ID and README
               run: |
-                nl="LATEST_ENTRY_ID = $new_id"
-                sed -i "s/LATEST_ENTRY_ID = [0-9]\+/$(nl)/" main.py
-                nr="Latest Release ($(date +'%Y.%m.%d'))"
-                sed -i "s/Latest Release ([0-9]\+\.[0-9]\+\.[0-9]\+)/$(nr)/" README.md
+                new_id=$(sqlite3 wvfoia.db 'SELECT id FROM entries ORDER BY id DESC LIMIT 1;')
+                sed -i "s/LATEST_ENTRY_ID = [0-9]\+/LATEST_ENTRY_ID = $new_id/" main.py
+                today=$(date +'%Y-%m-%d')
+                sed -i "s/Latest Release (v1.0.[0-9]\+\-[0-9]\+\-[0-9]\+)/Latest Release (v1.0.$today)/" README.md
             - name: Commit and push changes
               run: |
                 git add main.py README.md
