@@ -13,7 +13,7 @@ jobs:
               with:
                 cache: 'pip'
             - name: Install dependencies
-              run: make install-deps
+              run: pip3 install -r requirements.txt
             - name: Download database
               run: curl -o flights.db -sL https://github.com/AustinDizzy/wvfoia-sync/releases/latest/download/wvfoia.db
             - name: Store initial latest ID
