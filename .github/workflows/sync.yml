@@ -41,6 +41,6 @@ jobs:
                 git push
             - name: Create new release
               run: |
-                gh release create $(date +%Y.%m.%d) --title "v1.0.$(date +%Y-%m-%d)" --notes "New release for $(date +%Y-%m-%d)" --target master wvfoia.db
+                gh release create "v1.0.$(date +%Y-%m-%d)" --title "v1.0.$(date +%Y-%m-%d)" --notes "New release for $(date +%Y-%m-%d)" --target master wvfoia.db
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
