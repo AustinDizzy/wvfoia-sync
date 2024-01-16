@@ -15,7 +15,7 @@ global db
 CRAWLER_SLEEP = (100, 500)
 
 # the latest entry ID in the web database
-LATEST_ENTRY_ID = 43859
+LATEST_ENTRY_ID = 43861
 
 # the default database file
 DEFAULT_DB = "wvfoia.db"
