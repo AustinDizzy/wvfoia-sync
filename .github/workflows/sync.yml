@@ -35,7 +35,7 @@ jobs:
           fi
       - name: Upload database as artifact
         if: env.new_data_found == 'true'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: wvfoia-db
           path: wvfoia.db
@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download database artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: wvfoia-db
       - name: Update LATEST_ENTRY_ID and README
