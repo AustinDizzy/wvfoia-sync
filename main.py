@@ -14,6 +14,9 @@ global db
 # crawler will sleep for a random amount of time between these two values
 CRAWLER_SLEEP = (100, 500)
 
+# crawler will check up to this many consecutive missing entries before stopping
+CRAWLER_DRIFT_TOLERANCE = 3
+
 # the latest entry ID in the web database
 LATEST_ENTRY_ID = 54201
 
@@ -177,13 +180,19 @@ def sync_range(range: str) -> None:
                 sys.exit()
 
 
-def run_crawler() -> int:
+def run_crawler(drift_tolerance: int = CRAWLER_DRIFT_TOLERANCE) -> int:
     """
     Crawler mode crawls the web database automatically starting from the last
     known entry ID, checks for new entries, and adds them to the local database.
+
+    When a missing entry is encountered, the crawler will check up to 'drift_tolerance'
+    consecutive IDs ahead to see if there are more entries. This handles cases where
+    individual entries have been deleted (they shouldn't be ... but they still are)
+    and others exist beyond them.
+
     Returns the number of entries added.
     """
-    logging.info("running crawler...")
+    logging.info(f"running crawler (drift_tolerance = {drift_tolerance})...")
     n = 0
     global LATEST_ENTRY_ID
 
@@ -202,8 +211,29 @@ def run_crawler() -> int:
                 time.sleep(s / 100)
                 n += 1
             else:
-                print(f"{datetime.now().replace(microsecond=0)} ❕ Latest entry found (#{LATEST_ENTRY_ID}). Crawler exiting...")
-                return n
+                # Check for drift - look ahead to see if there are more entries
+                missing_entry_id = LATEST_ENTRY_ID + 1
+                print(f"{datetime.now().replace(microsecond=0)} ❌ #{missing_entry_id} missing, checking drift...")
+                drift_count = 0
+                found_entries_ahead = False
+
+                for check_id in range(LATEST_ENTRY_ID + 2, LATEST_ENTRY_ID + 2 + drift_tolerance):
+                    check_entry = get_entry(check_id)
+                    if check_entry:
+                        print(f"{datetime.now().replace(microsecond=0)} 🔍 Found entry #{check_id} ahead, continuing crawl...")
+                        found_entries_ahead = True
+                        LATEST_ENTRY_ID = check_id - 1
+                        break
+                    else:
+                        drift_count += 1
+                        print(f"{datetime.now().replace(microsecond=0)} ❌ #{check_id} also missing ({drift_count}/{drift_tolerance})")
+
+                if found_entries_ahead:
+                    print(f"{datetime.now().replace(microsecond=0)} ⏭️  Skipping missing entry #{missing_entry_id}, continuing from #{LATEST_ENTRY_ID + 1}...")
+                    continue
+                else:
+                    print(f"{datetime.now().replace(microsecond=0)} ❕ Reached end after checking {drift_tolerance} consecutive missing entries. Crawler exiting...")
+                    return n
         except KeyboardInterrupt:
             print(f" exiting...added {n} this trip")
             sys.exit()
@@ -217,6 +247,8 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="verbose output")
     parser.add_argument("-d", "--debug", action="store_true", help="debug output")
     parser.add_argument("--range", help="range of IDs to sync (requires 'range' mode)")
+    parser.add_argument("--drift-tolerance", type=int, default=CRAWLER_DRIFT_TOLERANCE,
+                       help=f"number of consecutive missing entries to check before stopping (default: {CRAWLER_DRIFT_TOLERANCE})")
     parser.add_argument("ids", nargs=argparse.REMAINDER, help="ID")
     args = parser.parse_args()
 
@@ -237,7 +269,7 @@ def main():
             sync_range(args.range)
         case "crawl":
             # for crawling from a known latest entry ID to find new records
-            n = run_crawler()
+            n = run_crawler(args.drift_tolerance)
             print(f"Added {n} new entries.")
         case "retrieve" | _:
             # for retrieving a single record or a list of records
