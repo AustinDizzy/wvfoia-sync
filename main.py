@@ -8,6 +8,7 @@ import random
 import sqlite3
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
+from typing import Any
 
 global db
 
@@ -23,9 +24,7 @@ LATEST_ENTRY_ID = 54201
 # the default database file
 DEFAULT_DB = "wvfoia.db"
 
-# latest now is 43480, we'll test the crawler to reach this later
-
-def get_entry(id: int) -> dict:
+def get_entry(id: int) -> dict | None:
     """
     Gets the entry with the given ID from the web database and returns its data as a dictionary.
     """
@@ -46,7 +45,7 @@ def get_entry(id: int) -> dict:
     additional_data = pg.select(".container-requestitems .panel-body")
 
     # Mapping labels to data
-    entry = {
+    entry: dict[str, Any] = {
         label.get_text(strip=True).replace(":", "").lower().replace(" ", "_"): data[
             i
         ].get_text(strip=True)
