@@ -3,7 +3,7 @@
 This project syncs a local SQLite database with the contents of the [(WV)FOIA Database maintained by the West Virginia Secretary of State's Office](https://erls.wvsos.gov/FOIA_Database/Search).
 
 * https://l.abs.codes/data/wv-foia - browse and query the database via Datasette
-* [Latest Release (v1.0.2025-10-30)](https://github.com/AustinDizzy/wvfoia-sync/releases/latest) - download the latest database in full
+* [Latest Release (v1.0.2025-10-31)](https://github.com/AustinDizzy/wvfoia-sync/releases/latest) - download the latest database in full
 
 The database is updated automatically every day at 4AM Eastern Time and published via a new GitHub Release. The updated database is then immediately available on the Datasette instance.
 
