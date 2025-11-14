@@ -19,7 +19,7 @@ CRAWLER_SLEEP = (100, 500)
 CRAWLER_DRIFT_TOLERANCE = 3
 
 # the latest entry ID in the web database
-LATEST_ENTRY_ID = 58897
+LATEST_ENTRY_ID = 58915
 
 # the default database file
 DEFAULT_DB = "wvfoia.db"
