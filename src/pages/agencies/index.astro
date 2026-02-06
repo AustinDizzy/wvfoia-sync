@@ -1,0 +1,80 @@
+---
+export const prerender = false;
+
+import Layout from "$/layouts/Layout.astro";
+import Pagination from "$/components/Pagination.astro";
+import { createDbContext } from "$/lib/db/context";
+import { agenciesPage } from "$/lib/data";
+import { href } from "$/lib/links";
+import { fmtNumber, parseCursor } from "$/lib/utils";
+
+const ctx = createDbContext(Astro.locals.runtime.env);
+const url = new URL(Astro.request.url);
+const cursor = parseCursor(url);
+const search = (url.searchParams.get("search") ?? "").trim();
+const sort = (url.searchParams.get("sort") ?? "").trim() || "most_requests";
+const hasActiveAgencyFilters = Boolean(search || sort !== "most_requests");
+Astro.response.headers.set("cache-control", "public, max-age=120, s-maxage=300, stale-while-revalidate=86400");
+
+const pageData = await agenciesPage(ctx, search, sort, cursor);
+---
+
+<Layout title="agencies - wvfoia-sync">
+  <section class="space-y-4">
+    <h1 class="font-mono text-xl leading-7 font-semibold">agencies</h1>
+
+    <form method="get" class="grid md:grid-cols-4 gap-2">
+      <div class="md:col-span-2">
+        <label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Search</label>
+        <input class="w-full rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="text" name="search" value={search} />
+      </div>
+      <div>
+        <label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Sort</label>
+        <select class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" name="sort">
+          <option value="most_requests" selected={sort === "most_requests"}>most requests</option>
+          <option value="least_requests" selected={sort === "least_requests"}>least requests</option>
+          <option value="highest_response_time" selected={sort === "highest_response_time"}>slowest response</option>
+          <option value="lowest_response_time" selected={sort === "lowest_response_time"}>fastest response</option>
+        </select>
+      </div>
+      <div class="flex items-end gap-3">
+        <button class="cursor-pointer rounded-md border border-slate-500 bg-slate-100 px-3 py-1.5 font-mono text-sm leading-5 hover:bg-slate-200 dark:border-[#4b4b4b] dark:bg-[#151515] dark:hover:bg-[#2a2a2a]">apply</button>
+        {hasActiveAgencyFilters && <a href={href("agencies")} class="px-2 py-1 font-mono underline">clear</a>}
+      </div>
+    </form>
+
+    <p class="text-sm leading-5 text-muted">{pageData.total.toLocaleString()} agencies</p>
+
+    <div class="overflow-x-auto rounded-lg border border-border bg-surface shadow-sm [-webkit-overflow-scrolling:touch]">
+      <table class="w-full min-w-[48rem] text-sm leading-5 max-sm:min-w-[54rem] [&_td]:p-0">
+        <thead class="border-b border-border bg-surface-muted font-mono text-[11px] uppercase">
+          <tr>
+            <th class="px-3 py-2 text-left sm:px-4">Agency</th>
+            <th class="px-3 py-2 text-right sm:px-4">Requests</th>
+            <th class="px-3 py-2 text-right sm:px-4">Avg Days</th>
+            <th class="px-3 py-2 text-right sm:px-4">30d</th>
+            <th class="px-3 py-2 text-right sm:px-4">90d</th>
+            <th class="px-3 py-2 text-right sm:px-4">365d</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pageData.entries.map((agency) => {
+            const agencyHref = href(`agencies/${agency.slug}`);
+            return (
+              <tr class="border-b border-border-soft hover:bg-slate-50 focus-within:bg-slate-50 dark:hover:bg-[#1f1f1f] dark:focus-within:bg-[#1f1f1f]">
+                <td><a class="block px-3 py-2 sm:px-4" href={agencyHref}>{agency.name}</a></td>
+                <td class="text-right"><a class="block px-3 py-2 sm:px-4" href={agencyHref}>{agency.requests.toLocaleString()}</a></td>
+                <td class="text-right"><a class="block px-3 py-2 sm:px-4" href={agencyHref}>{agency.avgResponseTime > 0 ? fmtNumber(agency.avgResponseTime) : "--"}</a></td>
+                <td class="text-right"><a class="block px-3 py-2 sm:px-4" href={agencyHref}>{agency.requests30d.toLocaleString()}</a></td>
+                <td class="text-right"><a class="block px-3 py-2 sm:px-4" href={agencyHref}>{agency.requests90d.toLocaleString()}</a></td>
+                <td class="text-right"><a class="block px-3 py-2 sm:px-4" href={agencyHref}>{agency.requests365d.toLocaleString()}</a></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    <Pagination currentPage={cursor.page} totalPages={pageData.totalPages} url={url} />
+  </section>
+</Layout>

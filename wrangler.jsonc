@@ -1,0 +1,51 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wvfoia-sync",
+  "main": "./worker.mjs",
+  "routes": [
+    "l.abs.codes/wvfoia-sync",
+    "l.abs.codes/wvfoia-sync/*"
+  ],
+  "workers_dev": false,
+  "compatibility_date": "2026-02-05",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "vars": {
+    "D1_DATABASE_ID": "5bc2c80e-3c26-4d1c-aa1e-45d3186a5997",
+    "PUBLIC_ANALYTICS_SRC": "https://tr.abs.codes/api/script.js",
+    "PUBLIC_ANALYTICS_SITE_ID": "851d9c76fcd7"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wvfoia_sync",
+      "database_id": "5bc2c80e-3c26-4d1c-aa1e-45d3186a5997"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "DB_EXPORTS",
+      "bucket_name": "wvfoia-sync"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "DB_CACHE",
+      "id": "917d8b65e85e480f83de03ac9326b679"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "0 9 * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true
+  }
+}

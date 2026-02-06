@@ -1,0 +1,50 @@
+---
+import StatusBadge from "./StatusBadge.astro";
+import { href } from "$/lib/links";
+import type { Entry } from "$/lib/types";
+import { diffHuman, formatDate, formatRequestor } from "$/lib/utils";
+
+interface Props {
+  entries: Entry[];
+  showAgency?: boolean;
+  emptyMessage?: string;
+}
+
+const { entries, showAgency = true, emptyMessage } = Astro.props;
+---
+
+<table class="w-full min-w-3xl text-sm leading-5 max-sm:min-w-216 [&_td]:p-0">
+  <thead class="border-b border-border bg-surface-muted font-mono text-[11px] uppercase">
+    <tr>
+      <th class="px-3 py-2 text-left sm:px-4">Request</th>
+      <th class="px-3 py-2 text-left sm:px-4">Requestor</th>
+      <th class="px-3 py-2 text-left sm:px-4">Subject</th>
+      {showAgency && <th class="px-3 py-2 text-left sm:px-4">Agency</th>}
+      <th class="px-3 py-2 text-left sm:px-4">Status</th>
+      <th class="px-3 py-2 text-left sm:px-4">Completed</th>
+    </tr>
+  </thead>
+  <tbody>
+    {entries.map((entry) => {
+      const requestorName = [entry.first_name, entry.middle_name, entry.last_name].filter(Boolean).join(" ");
+      const requestorText = formatRequestor(entry);
+      const requestorClass = requestorName
+        ? "block px-3 py-2 sm:px-4 whitespace-nowrap"
+        : "block px-3 py-2 sm:px-4 whitespace-normal";
+      const entryHref = href(`entries/${entry.id}`);
+
+      return (
+        <tr class="border-b border-border-soft hover:bg-slate-50 focus-within:bg-slate-50 dark:hover:bg-[#1f1f1f] dark:focus-within:bg-[#1f1f1f]">
+          <td><a class="block px-3 py-2 sm:px-4 whitespace-nowrap" href={entryHref}>{formatDate(entry.request_date, true)}</a></td>
+          <td><a class={requestorClass} href={entryHref}>{requestorText}</a></td>
+          <td><a class="block px-3 py-2 sm:px-4" href={entryHref}>{entry.subject || "--"}</a></td>
+          {showAgency && <td><a class="block px-3 py-2 sm:px-4" href={entryHref}>{entry.agency}</a></td>}
+          <td><a class="block px-3 py-2 sm:px-4 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_#f59e0b]" href={entryHref}><StatusBadge resolution={entry.resolution} /></a></td>
+          <td><a class="block px-3 py-2 sm:px-4" href={entryHref}>{formatDate(entry.completion_date, true)}<div class="text-xs text-muted">{diffHuman(entry.request_date, entry.completion_date)}</div></a></td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+
+{emptyMessage && entries.length === 0 && <div class="px-3 py-2 text-muted sm:px-4">{emptyMessage}</div>}

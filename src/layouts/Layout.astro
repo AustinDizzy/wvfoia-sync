@@ -1,0 +1,111 @@
+---
+import "../styles/global.css";
+import ThemeToggle from "../components/ThemeToggle.astro";
+import { href } from "$/lib/links";
+
+interface Props {
+  title?: string;
+  description?: string;
+  noindex?: boolean;
+}
+
+const site = "wvfoia-sync";
+const defaultDescription = "Search and browse a mirror of the WVFOIA database.";
+const { title = site, description = defaultDescription, noindex } = Astro.props;
+
+const runtimeEnv = Astro.locals.runtime.env as {
+  PUBLIC_ANALYTICS_SRC?: string;
+  PUBLIC_ANALYTICS_SITE_ID?: string;
+};
+const analyticsSrc = runtimeEnv.PUBLIC_ANALYTICS_SRC ?? import.meta.env.PUBLIC_ANALYTICS_SRC;
+const analyticsSiteId = runtimeEnv.PUBLIC_ANALYTICS_SITE_ID ?? import.meta.env.PUBLIC_ANALYTICS_SITE_ID;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.url.origin).toString();
+const basePrefix = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+const pathWithinBase = Astro.url.pathname.startsWith(`${basePrefix}/`)
+  ? Astro.url.pathname.slice(basePrefix.length)
+  : Astro.url.pathname;
+const normalizedPath = pathWithinBase.replace(/\/+$/, "") || "/";
+const isIndexablePath = normalizedPath === "/"
+  || normalizedPath === "/agencies"
+  || /^\/agencies\/[^/]+$/.test(normalizedPath);
+const statusCode = Astro.response.status ?? 200;
+const shouldNoindex = noindex ?? (
+  statusCode >= 400
+  || Astro.url.search.length > 0
+  || !isIndexablePath
+);
+const robots = shouldNoindex ? "noindex,follow" : "index,follow";
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: site,
+  url: new URL(import.meta.env.BASE_URL || "/", Astro.url.origin).toString()
+};
+---
+
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <link rel="icon" type="image/png" sizes="32x32" href={href("favicon-32x32.png")} />
+    <link rel="icon" type="image/png" sizes="16x16" href={href("favicon-16x16.png")} />
+    <link rel="apple-touch-icon" sizes="180x180" href={href("apple-touch-icon.png")} />
+    <link rel="manifest" href={href("site.webmanifest")} />
+    <script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
+    <script is:inline>
+      (() => {
+        const pref = localStorage.getItem("theme");
+        const isDark = pref ? pref === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (isDark) document.documentElement.classList.add("dark");
+      })();
+    </script>
+    {import.meta.env.PROD && analyticsSrc && analyticsSiteId && (
+      <script defer src={analyticsSrc} data-site-id={analyticsSiteId}></script>
+    )}
+  </head>
+  <body class="h-full bg-bg text-fg font-sans">
+    <div class="min-h-screen flex flex-col">
+      <header class="border-b border-border bg-surface">
+        <div class="mx-auto flex w-full max-w-375 items-center justify-between gap-3 px-4 py-4 sm:gap-4">
+          <a href={href()} class="group flex min-w-0 flex-1 items-center gap-1.5 font-mono">
+            <span class="shrink-0 text-xs font-medium text-muted transition-colors duration-200 group-hover:text-fg group-focus-visible:text-fg sm:text-sm">l.abs.codes</span>
+            <span class="shrink-0 text-xs font-medium text-muted transition-colors duration-200 group-hover:text-fg group-focus-visible:text-fg sm:text-sm">/</span>
+            <span class="text-base font-semibold tracking-tight sm:text-lg md:text-xl">{site}</span>
+          </a>
+          <nav class="ml-2 shrink-0 space-x-3 font-mono text-sm sm:ml-3 sm:space-x-5 sm:text-base">
+            <a class="link" href={href("entries")}>entries</a>
+            <a class="link" href={href("agencies")}>agencies</a>
+          </nav>
+        </div>
+      </header>
+
+      <main class="mx-auto w-full max-w-375 flex-1 px-4 py-6">
+        <slot />
+      </main>
+
+      <footer class="border-t border-border bg-surface">
+        <div class="mx-auto flex w-full max-w-375 flex-wrap items-center justify-between gap-3 px-4 py-4 font-mono text-xs text-muted sm:gap-4">
+          <div>
+            Data published as public record under <a class="link whitespace-nowrap" href="https://code.wvlegislature.gov/29b-1" target="_blank" rel="noreferrer">W.Va. Code §29B-1 et seq.</a>. <span class="whitespace-nowrap">Updates daily at 4AM Eastern.</span>
+          </div>
+          <div class="flex w-full shrink-0 items-center justify-between gap-5 whitespace-nowrap sm:w-auto sm:justify-end sm:gap-7 lg:gap-8">
+            <div class="pr-1 sm:pr-0">
+              <a href="https://github.com/AustinDizzy/wvfoia-sync" class="link">GitHub</a>
+            </div>
+            <ThemeToggle />
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script is:inline src={href("assets/app.js")}></script>
+  </body>
+</html>

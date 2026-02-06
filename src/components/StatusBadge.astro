@@ -1,0 +1,21 @@
+---
+import { resolutionBucketKey } from "$/lib/utils";
+
+interface Props {
+  resolution: string | null;
+}
+
+const { resolution } = Astro.props;
+const text = resolution ?? "Other";
+const bucket = resolutionBucketKey(resolution);
+const baseClass = "inline-flex items-center whitespace-nowrap border px-2 py-1 text-xs leading-4 font-mono";
+const toneClassByBucket = {
+  granted: "border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+  granted_in_part: "border-lime-300 bg-lime-100 text-lime-900 dark:border-lime-900 dark:bg-lime-950 dark:text-lime-200",
+  rejected: "border-rose-300 bg-rose-100 text-rose-900 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200",
+  exempted: "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
+  other: "border-slate-300 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+} as const;
+---
+
+<span class:list={[baseClass, toneClassByBucket[bucket]]}>{text}</span>

@@ -1,0 +1,92 @@
+---
+export const prerender = false;
+
+import Layout from "$/layouts/Layout.astro";
+import EntriesTable from "$/components/EntriesTable.astro";
+import Pagination from "$/components/Pagination.astro";
+import { createDbContext } from "$/lib/db/context";
+import { distinctResolutions, listEntries, resolutionCounts } from "$/lib/data";
+import { href } from "$/lib/links";
+import { ENTRY_SORT_CHOICES, parseCursor, parseEntrySearchOptions, resolutionSortScore } from "$/lib/utils";
+
+const ctx = createDbContext(Astro.locals.runtime.env);
+const url = new URL(Astro.request.url);
+const search = parseEntrySearchOptions(url);
+const cursor = parseCursor(url);
+const [pageData, statuses, statusCounts] = await Promise.all([
+  listEntries(ctx, search, cursor),
+  distinctResolutions(ctx),
+  resolutionCounts(ctx)
+]);
+
+const orderedStatuses = [...statuses].sort((a, b) => {
+  const aScore = resolutionSortScore(a);
+  const bScore = resolutionSortScore(b);
+  if (aScore !== bScore) return aScore - bScore;
+  return a.localeCompare(b);
+});
+const hasActiveEntryFilters = Boolean(
+  search.search ||
+  search.agency ||
+  search.resolution.length > 0 ||
+  search.requestDateFrom ||
+  search.requestDateTo ||
+  search.completionDateFrom ||
+  search.completionDateTo ||
+  search.sort !== "newest_entry"
+);
+---
+
+<Layout title="entries - wvfoia-sync">
+  <section class="space-y-4">
+    <div>
+      <h1 class="font-mono text-xl leading-7 font-semibold">entries</h1>
+      <p class="text-sm leading-5 text-muted">{pageData.total.toLocaleString()} matching rows</p>
+    </div>
+
+    <form class="space-y-3 rounded-lg border border-border bg-surface-muted p-3" method="get" action={href("entries")}>
+      <div class="grid md:grid-cols-3 gap-3">
+        <div><label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Search</label><input class="w-full rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="text" name="search" value={search.search} placeholder="subject, requestor, details, response" /></div>
+        <div><label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Agency</label><input class="w-full rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="text" name="agency" value={search.agency} /></div>
+        <div>
+          <label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Sort</label>
+          <select class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" name="sort" data-omit-default="newest_entry">
+            {ENTRY_SORT_CHOICES.map((choice) => (
+              <option value={choice.value} selected={search.sort === choice.value}>{choice.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <details class="pt-1" open={Boolean(search.requestDateFrom || search.requestDateTo || search.completionDateFrom || search.completionDateTo)}>
+        <summary class="text-sm underline cursor-pointer">advanced filters</summary>
+        <div class="grid md:grid-cols-4 gap-3 pt-2">
+          <div><label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Request from</label><input class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="date" name="dateFrom" value={search.requestDateFrom} /></div>
+          <div><label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Request to</label><input class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="date" name="dateTo" value={search.requestDateTo} /></div>
+          <div><label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Completion from</label><input class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="date" name="completionDateFrom" value={search.completionDateFrom} /></div>
+          <div><label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Completion to</label><input class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" type="date" name="completionDateTo" value={search.completionDateTo} /></div>
+        </div>
+      </details>
+
+      <div class="pt-1 flex flex-wrap gap-2">
+        {orderedStatuses.map((status) => (
+          <label class="text-sm inline-flex items-center gap-1 px-1 cursor-pointer select-none">
+            <input class="cursor-pointer" type="checkbox" name="resolution" value={status} checked={search.resolution.includes(status)} />
+            {status} <span class="text-faint">({Number(statusCounts[status] ?? 0).toLocaleString()})</span>
+          </label>
+        ))}
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button type="submit" class="cursor-pointer rounded-md border border-slate-500 bg-slate-100 px-3 py-1.5 font-mono text-sm leading-5 hover:bg-slate-200 dark:border-[#4b4b4b] dark:bg-[#151515] dark:hover:bg-[#2a2a2a]">apply</button>
+        {hasActiveEntryFilters && <a href={href("entries")} class="font-mono px-2 py-1 underline">clear</a>}
+      </div>
+    </form>
+
+    <div class="w-full overflow-x-auto rounded-lg border border-border bg-surface shadow-sm [-webkit-overflow-scrolling:touch]">
+      <EntriesTable entries={pageData.entries} emptyMessage="No entries found." />
+    </div>
+
+    <Pagination currentPage={cursor.page} totalPages={pageData.totalPages} url={url} />
+  </section>
+</Layout>

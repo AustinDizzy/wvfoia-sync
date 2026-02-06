@@ -1,0 +1,45 @@
+<div class="inline-flex items-center gap-2">
+  <span class="text-[11px] uppercase tracking-wide text-faint">THEME</span>
+  <button
+    id="theme-toggle"
+    type="button"
+    class="inline-flex cursor-pointer items-center gap-1 rounded-sm px-1 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+    aria-label="Switch to dark mode"
+  >
+    <span
+      id="theme-light"
+      class="border-b border-dotted border-slate-400 pb-0.5 text-fg dark:border-transparent dark:text-faint"
+    >
+      light
+    </span>
+    <span class="mx-0.5 text-faint">/</span>
+    <span
+      id="theme-dark"
+      class="border-b border-dotted border-transparent pb-0.5 text-faint dark:border-[#4b4b4b] dark:text-fg"
+    >
+      dark
+    </span>
+  </button>
+</div>
+
+<script>
+  (() => {
+    const themeButton = document.getElementById("theme-toggle");
+    if (!themeButton) return;
+
+    const applyThemeLabel = () => {
+      const dark = document.documentElement.classList.contains("dark");
+      themeButton.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    };
+
+    themeButton.addEventListener("click", () => {
+      const dark = !document.documentElement.classList.contains("dark");
+      document.documentElement.classList.toggle("dark", dark);
+      localStorage.setItem("theme", dark ? "dark" : "light");
+      applyThemeLabel();
+      window.rybbit?.event?.("theme_toggle", { theme: dark ? "dark" : "light" });
+    });
+
+    applyThemeLabel();
+  })();
+</script>

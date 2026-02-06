@@ -1,0 +1,62 @@
+---
+import { buildPageNumbers } from "$/lib/utils";
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  url: URL;
+}
+
+const { currentPage, totalPages, url } = Astro.props;
+const pages = buildPageNumbers(currentPage, totalPages);
+const prevPage = currentPage > 1 ? String(currentPage - 1) : null;
+const nextPage = currentPage < totalPages ? String(currentPage + 1) : null;
+
+const hrefFor = (value: string) => {
+  if (value === "...") return "#";
+  const next = new URL(url.toString());
+  next.searchParams.delete("pageSize");
+  for (const key of Array.from(next.searchParams.keys())) {
+    const values = next.searchParams.getAll(key);
+    if (values.length > 0 && values.every((x) => x.trim() === "")) next.searchParams.delete(key);
+  }
+  next.searchParams.set("page", value);
+  return `${next.pathname}${next.search}`;
+};
+---
+
+{totalPages > 1 && (
+  <nav class="mt-4 flex flex-wrap items-center gap-2" aria-label="Pagination">
+    <div class="text-sm leading-5 text-muted">page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}</div>
+    <div class="ml-auto inline-flex items-center gap-1 font-mono text-xs sm:text-sm">
+      {prevPage ? (
+        <a href={hrefFor(prevPage)} rel="prev" class="link px-1 py-0.5 text-muted">prev</a>
+      ) : (
+        <span class="px-1 py-0.5 text-faint no-underline">prev</span>
+      )}
+
+      {pages.map((page) => (
+        page === "..." ? (
+          <span class="px-1 text-faint">...</span>
+        ) : (
+          <a
+            href={hrefFor(page)}
+            aria-current={page === String(currentPage) ? "page" : undefined}
+            class:list={[
+              "link px-1 py-0.5 text-muted",
+              page === String(currentPage) && "text-fg decoration-2"
+            ]}
+          >
+            {page}
+          </a>
+        )
+      ))}
+
+      {nextPage ? (
+        <a href={hrefFor(nextPage)} rel="next" class="link px-1 py-0.5 text-muted">next</a>
+      ) : (
+        <span class="px-1 py-0.5 text-faint no-underline">next</span>
+      )}
+    </div>
+  </nav>
+)}

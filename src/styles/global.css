@@ -1,0 +1,64 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-warm: var(--accent-warm);
+  --color-focus: var(--focus);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-muted: #f8fafc;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #64748b;
+    --accent: #0369a1;
+    --accent-warm: #f9a70e;
+    --focus: #f59e0b;
+    --chart-grid: rgba(100, 116, 139, 0.2);
+    --chart-text: #334155;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --bg: #0e0e0e;
+    --surface: #0e0e0e;
+    --surface-muted: #151515;
+    --border: #353535;
+    --border-soft: #2a2a2a;
+    --text: #fdf9f3;
+    --text-muted: #cfc6b8;
+    --text-faint: #8f8a82;
+    --accent: #7dd3fc;
+    --accent-warm: #f9a70e;
+    --focus: #f9a70e;
+    --chart-grid: rgba(112, 124, 140, 0.28);
+    --chart-text: #f3ece0;
+  }
+}
+
+.link {
+  @apply underline underline-offset-2 hover:text-accent focus-visible:text-accent dark:hover:text-accent-warm dark:focus-visible:text-accent-warm;
+}
+
+.link-hover {
+  @apply no-underline hover:text-accent focus-visible:text-accent dark:hover:text-accent-warm dark:focus-visible:text-accent-warm;
+}
+
+#agencyResolutionChartWrap canvas {
+  @apply block w-full! h-full! max-w-full;
+}

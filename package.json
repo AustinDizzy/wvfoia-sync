@@ -1,0 +1,30 @@
+{
+  "name": "wvfoia-sync",
+  "version": "0.1",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "postbuild": "cp .assetsignore dist/.assetsignore",
+    "preview": "astro build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "astro": "astro",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run build",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.12",
+    "@tailwindcss/vite": "^4.1.18",
+    "astro": "^5.17.1",
+    "drizzle-orm": "^0.45.1",
+    "node-html-parser": "^7.0.2",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.1",
+    "wrangler": "^4.63.0"
+  }
+}

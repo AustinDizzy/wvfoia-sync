@@ -1,0 +1,190 @@
+name: Export Database to SQLite
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:30 UTC = 04:30 Eastern Standard Time
+    - cron: "30 9 * * *"
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME || 'wvfoia-sync' }}
+      R2_BUCKET: ${{ vars.R2_BUCKET || 'wvfoia-sync' }}
+      SQL_OBJECT_KEY: ${{ vars.SQL_OBJECT_KEY || 'wvfoia.sql' }}
+      SQLITE_OBJECT_KEY: ${{ vars.SQLITE_OBJECT_KEY || 'wvfoia.db' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Ensure sqlite3 is available
+        run: |
+          set -euo pipefail
+          if ! command -v sqlite3 >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends sqlite3
+            sudo rm -rf /var/lib/apt/lists/*
+          fi
+
+      - name: Get current D1 bookmark
+        id: current_bookmark
+        run: |
+          set -euo pipefail
+          INFO_JSON="$RUNNER_TEMP/time-travel-info.json"
+          CURRENT_BOOKMARK_FILE="$RUNNER_TEMP/current-bookmark.txt"
+
+          npx wrangler d1 time-travel info "$D1_DATABASE_NAME" --json > "$INFO_JSON"
+          CURRENT_BOOKMARK="$(jq -r 'if type=="array" then (.[0].bookmark // .[0].result.bookmark // .[0].at_bookmark // empty) else (.bookmark // .result.bookmark // .at_bookmark // empty) end' "$INFO_JSON")"
+          if [ -z "$CURRENT_BOOKMARK" ]; then
+            echo "Could not resolve D1 bookmark from time-travel info output."
+            cat "$INFO_JSON"
+            exit 1
+          fi
+          printf '%s' "$CURRENT_BOOKMARK" > "$CURRENT_BOOKMARK_FILE"
+          echo "bookmark=$CURRENT_BOOKMARK" >> "$GITHUB_OUTPUT"
+          echo "current_bookmark_file=$CURRENT_BOOKMARK_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Find previous state artifact
+        id: find_state
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflowId = "export-db-sqlite.yml";
+            let latestArtifact = null;
+            let latestArtifactRunId = "";
+
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id: workflowId,
+              status: "success",
+              per_page: 100
+            });
+
+            for (const run of runs) {
+              const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                owner,
+                repo,
+                run_id: run.id,
+                per_page: 100
+              });
+              const match = artifacts.find((artifact) => artifact.name === "d1-export-state" && !artifact.expired);
+              if (match) {
+                latestArtifact = match;
+                latestArtifactRunId = String(run.id);
+                break;
+              }
+            }
+
+            core.setOutput("artifact_id", latestArtifact ? String(latestArtifact.id) : "");
+            core.setOutput("artifact_run_id", latestArtifactRunId);
+
+      - name: Download previous state artifact
+        if: steps.find_state.outputs.artifact_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          artifact-ids: ${{ steps.find_state.outputs.artifact_id }}
+          run-id: ${{ steps.find_state.outputs.artifact_run_id }}
+          path: ${{ runner.temp }}/previous-state
+
+      - name: Compare bookmark with previous state
+        id: bookmark
+        run: |
+          set -euo pipefail
+          CURRENT_BOOKMARK="${{ steps.current_bookmark.outputs.bookmark }}"
+          PREVIOUS_STATE_DIR="$RUNNER_TEMP/previous-state"
+          PREVIOUS_BOOKMARK_FILE="$PREVIOUS_STATE_DIR/current-bookmark.txt"
+          PREVIOUS_BOOKMARK=""
+
+          if [ -f "$PREVIOUS_BOOKMARK_FILE" ]; then
+            PREVIOUS_BOOKMARK="$(tr -d '\r\n' < "$PREVIOUS_BOOKMARK_FILE")"
+          fi
+
+          if [ -n "$PREVIOUS_BOOKMARK" ] && [ "$CURRENT_BOOKMARK" = "$PREVIOUS_BOOKMARK" ]; then
+            echo "No DB changes detected. Skipping export."
+            echo "should_export=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "DB change detected. Export will run."
+            echo "should_export=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "CURRENT_BOOKMARK_FILE=${{ steps.current_bookmark.outputs.current_bookmark_file }}" >> "$GITHUB_ENV"
+
+      - name: Export D1 and build SQLite
+        if: steps.bookmark.outputs.should_export == 'true'
+        run: |
+          set -euo pipefail
+          SQL_FILE="$RUNNER_TEMP/wvfoia.sql"
+          SQLITE_FILE="$RUNNER_TEMP/wvfoia.db"
+
+          npx wrangler d1 export "$D1_DATABASE_NAME" --remote --output "$SQL_FILE"
+          sqlite3 "$SQLITE_FILE" < "$SQL_FILE"
+          sqlite3 "$SQLITE_FILE" "PRAGMA optimize; VACUUM;"
+
+          echo "SQL_FILE=$SQL_FILE" >> "$GITHUB_ENV"
+          echo "SQLITE_FILE=$SQLITE_FILE" >> "$GITHUB_ENV"
+
+      - name: Upload SQL to R2
+        if: steps.bookmark.outputs.should_export == 'true'
+        run: |
+          set -euo pipefail
+          npx wrangler r2 object put "$R2_BUCKET/$SQL_OBJECT_KEY" \
+            --remote \
+            --file "$SQL_FILE" \
+            --content-type "application/sql" \
+            --cache-control "public, max-age=300"
+
+      - name: Upload SQLite to R2
+        if: steps.bookmark.outputs.should_export == 'true'
+        run: |
+          set -euo pipefail
+          SQLITE_FILENAME="$(basename "$SQLITE_OBJECT_KEY")"
+          npx wrangler r2 object put "$R2_BUCKET/$SQLITE_OBJECT_KEY" \
+            --remote \
+            --file "$SQLITE_FILE" \
+            --content-type "application/vnd.sqlite3" \
+            --content-disposition "attachment; filename=\"$SQLITE_FILENAME\"" \
+            --cache-control "public, max-age=300"
+
+      - name: Save export state bookmark
+        if: steps.bookmark.outputs.should_export == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: d1-export-state
+          path: ${{ env.CURRENT_BOOKMARK_FILE }}
+          retention-days: 90
+
+      - name: Upload SQL/SQLite run artifacts
+        if: steps.bookmark.outputs.should_export == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: d1-export-files-${{ github.run_id }}
+          path: |
+            ${{ env.SQL_FILE }}
+            ${{ env.SQLITE_FILE }}
+          retention-days: 60
+
+      - name: Upload summary
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.bookmark.outputs.should_export }}" = "true" ]; then
+            ls -lh "$SQL_FILE" "$SQLITE_FILE"
+          else
+            echo "Skipped export/upload because D1 bookmark did not change."
+          fi

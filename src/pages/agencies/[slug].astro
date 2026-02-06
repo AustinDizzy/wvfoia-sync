@@ -1,0 +1,236 @@
+---
+export const prerender = false;
+
+import Layout from "$/layouts/Layout.astro";
+import EntriesTable from "$/components/EntriesTable.astro";
+import Pagination from "$/components/Pagination.astro";
+import { createDbContext } from "$/lib/db/context";
+import { agencyBySlug, agencyResolutionTimeline, listEntries } from "$/lib/data";
+import { href } from "$/lib/links";
+import type { ResolutionTimelinePoint } from "$/lib/types";
+import { ENTRY_SORT_CHOICES, fmtNumber, parseCursor, parseEntrySearchOptions } from "$/lib/utils";
+
+const ctx = createDbContext(Astro.locals.runtime.env);
+const slug = decodeURIComponent(Astro.params.slug ?? "");
+const agency = await agencyBySlug(ctx, slug);
+Astro.response.headers.set("cache-control", "public, max-age=120, s-maxage=300, stale-while-revalidate=86400");
+
+if (!agency) Astro.response.status = 404;
+
+const url = new URL(Astro.request.url);
+const cursor = parseCursor(url);
+const search = parseEntrySearchOptions(url);
+if (agency) search.agency = agency.name;
+const [pageData, timelineAll] = agency
+  ? await Promise.all([
+      listEntries(ctx, search, cursor, agency.name),
+      agencyResolutionTimeline(ctx, agency.name, null)
+    ])
+  : [null, []];
+
+const filterTimelineDays = (timeline: ResolutionTimelinePoint[], days: number): ResolutionTimelinePoint[] => {
+  if (!timeline.length) return [];
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+  return timeline.filter((row) => row.date >= cutoffIso);
+};
+
+const timeline90d = filterTimelineDays(timelineAll, 90);
+const timeline365d = filterTimelineDays(timelineAll, 365);
+
+const toWindowData = (timeline: ResolutionTimelinePoint[]) => {
+  const totals = timeline.reduce((acc, row) => {
+    acc.granted += row.granted;
+    acc.grantedInPart += row.granted_in_part;
+    acc.exempted += row.exempted;
+    acc.rejected += row.rejected;
+    acc.other += row.other;
+    return acc;
+  }, {
+    granted: 0,
+    grantedInPart: 0,
+    exempted: 0,
+    rejected: 0,
+    other: 0
+  });
+  const totalResolved = totals.granted + totals.grantedInPart + totals.exempted + totals.rejected + totals.other;
+
+  return {
+    labels: timeline.map((row) => row.date),
+    datasets: {
+      granted: timeline.map((row) => row.granted),
+      grantedInPart: timeline.map((row) => row.granted_in_part),
+      exempted: timeline.map((row) => row.exempted),
+      rejected: timeline.map((row) => row.rejected),
+      other: timeline.map((row) => row.other)
+    },
+    totalResolved,
+    breakdown: [
+      { key: "granted", label: "Granted", count: totals.granted },
+      { key: "grantedInPart", label: "Granted in part", count: totals.grantedInPart },
+      { key: "exempted", label: "Exempted", count: totals.exempted },
+      { key: "rejected", label: "Rejected", count: totals.rejected },
+      { key: "other", label: "Other", count: totals.other }
+    ]
+  };
+};
+
+const chartWindows = {
+  "90": toWindowData(timeline90d),
+  "365": toWindowData(timeline365d),
+  all: toWindowData(timelineAll)
+};
+const initialWindow = chartWindows["90"];
+const breakdownMeta = [
+  { key: "granted", label: "Granted", colorClass: "bg-emerald-500 dark:bg-emerald-400" },
+  { key: "grantedInPart", label: "Granted in part", colorClass: "bg-lime-500 dark:bg-lime-400" },
+  { key: "exempted", label: "Exempted", colorClass: "bg-amber-500 dark:bg-amber-400" },
+  { key: "rejected", label: "Rejected", colorClass: "bg-rose-500 dark:bg-rose-400" },
+  { key: "other", label: "Other", colorClass: "bg-slate-500 dark:bg-slate-400" }
+];
+const periodMetrics = agency
+  ? [
+      {
+        title: "request volume",
+        divider: false,
+        items: [
+          { label: "30d", value: agency.requests30d.toLocaleString() },
+          { label: "90d", value: agency.requests90d.toLocaleString() },
+          { label: "365d", value: agency.requests365d.toLocaleString() }
+        ]
+      },
+      {
+        title: "response time",
+        divider: true,
+        items: [
+          { label: "30d", value: `${fmtNumber(agency.avgResponseTime30d)}d` },
+          { label: "90d", value: `${fmtNumber(agency.avgResponseTime90d)}d` },
+          { label: "365d", value: `${fmtNumber(agency.avgResponseTime365d)}d` }
+        ]
+      }
+    ]
+  : [];
+const chartWindowOptions = [
+  { key: "90", label: "90d" },
+  { key: "365", label: "365d" },
+  { key: "all", label: "all time" }
+];
+---
+
+<Layout title={agency ? `${agency.name} - wvfoia-sync` : "not found - wvfoia-sync"}>
+  {agency && pageData ? (
+    <section class="space-y-4">
+      <h1 class="font-mono text-xl leading-7 font-semibold">{agency.name}</h1>
+
+      <div class="grid xl:grid-cols-12 gap-3">
+        <div class="xl:col-span-4 min-w-0">
+          <div class="rounded-lg border border-border bg-surface p-4 shadow-sm">
+            <div class="grid grid-cols-2 gap-3 items-start">
+              <div>
+                <div class="font-mono text-[11px] uppercase tracking-wide text-muted">total requests</div>
+                <div class="text-[clamp(1.9rem,6vw,2.25rem)] leading-tight font-semibold mt-2">{agency.requests.toLocaleString()}</div>
+                <div class="mt-2 text-[clamp(0.72rem,2.2vw,0.875rem)] text-muted">Avg response: <span class="font-medium text-fg">{fmtNumber(agency.avgResponseTime)} days</span></div>
+              </div>
+              <div class="border-l border-border pl-4">
+                {periodMetrics.map((section) => (
+                  <div class:list={[section.divider && "mt-4 pt-3 border-t border-border"]}>
+                    <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{section.title}</div>
+                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                      {section.items.map((item) => (
+                        <div>
+                          <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{item.label}</div>
+                          <div class="text-[clamp(1rem,3.8vw,1.25rem)] font-semibold leading-5">{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="xl:col-span-8 min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <h2 class="font-mono text-sm">resolution activity (by completion date)</h2>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="mr-1 text-sm leading-5 text-muted"><span id="resolutionWindowTotal">{initialWindow.totalResolved.toLocaleString()}</span> shown</div>
+              {chartWindowOptions.map((windowOption) => {
+                const isActive = windowOption.key === "90";
+                return (
+                  <button
+                    type="button"
+                    data-chart-window={windowOption.key}
+                    data-active={isActive}
+                    aria-pressed={isActive}
+                    class="cursor-pointer rounded-md border px-2 py-1 font-mono text-xs sm:text-sm border-slate-300 hover:bg-slate-100 dark:border-[#4b4b4b] dark:hover:bg-[#1f1f1f] data-[active=true]:border-[#0f172a] data-[active=true]:bg-[#0f172a] data-[active=true]:text-white data-[active=true]:hover:bg-[#0f172a] dark:data-[active=true]:border-[#f1e9de] dark:data-[active=true]:bg-[#fdf9f3] dark:data-[active=true]:text-[#0e0e0e] dark:data-[active=true]:hover:bg-[#fdf9f3]"
+                  >{windowOption.label}</button>
+                );
+              })}
+            </div>
+          </div>
+          <div id="agencyResolutionChartWrap" class="h-[clamp(16rem,40vw,24rem)] w-full min-w-0 overflow-hidden" data-chart-windows={JSON.stringify(chartWindows)}>
+            <canvas id="agencyResolutionStacked"></canvas>
+          </div>
+          <div class="mt-6 border-t border-border pt-4">
+            <h3 class="font-mono text-sm mb-2">resolution breakdown</h3>
+            <div class="border border-border rounded-md bg-surface-muted p-2">
+              <div id="resolutionBreakdownBar" class="h-3 rounded-sm overflow-hidden flex">
+                {breakdownMeta.map(({ key, colorClass }) => {
+                  return <span data-breakdown-segment={key} class={`min-w-1 ${colorClass}`} aria-hidden="true"></span>;
+                })}
+              </div>
+              <div id="resolutionBreakdownLegend" class="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 text-xs">
+                {breakdownMeta.map(({ key, label, colorClass }) => {
+                  const item = initialWindow.breakdown.find((entry) => entry.key === key);
+                  const count = item?.count ?? 0;
+                  const pct = initialWindow.totalResolved > 0 ? (count / initialWindow.totalResolved) * 100 : 0;
+                  return (
+                    <div data-breakdown-key={key} class="rounded-sm border border-border px-2 py-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${colorClass}`}></span>
+                        <span class="font-mono leading-tight">{label}</span>
+                      </div>
+                      <div class="mt-0.5 pl-4 leading-tight text-muted lg:pl-0">
+                        <span data-breakdown-count>{count.toLocaleString()}</span> (<span data-breakdown-percent>{pct.toFixed(1)}</span>%)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <h2 class="font-mono text-sm">entries ({pageData.total.toLocaleString()})</h2>
+        <form method="get" class="flex items-end gap-3">
+          <div>
+            <label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Sort</label>
+            <select class="w-full cursor-pointer rounded-md border border-slate-400 bg-surface px-2 py-1 text-sm leading-5 dark:border-[#4b4b4b]" name="sort" data-omit-default="newest_entry" onchange="this.form.requestSubmit()">
+              {ENTRY_SORT_CHOICES.map((choice) => (
+                <option value={choice.value} selected={search.sort === choice.value}>{choice.label}</option>
+              ))}
+            </select>
+          </div>
+        </form>
+      </div>
+
+      <div class="w-full overflow-x-auto rounded-lg border border-border bg-surface shadow-sm [-webkit-overflow-scrolling:touch]">
+        <EntriesTable entries={pageData.entries} showAgency={false} />
+      </div>
+
+      <Pagination currentPage={cursor.page} totalPages={pageData.totalPages} url={url} />
+      <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script is:inline src={href("assets/agency-resolution-chart.js")}></script>
+    </section>
+  ) : (
+    <section class="space-y-2">
+      <h1 class="font-mono text-xl leading-7 font-semibold">not found</h1>
+      <p>That record or page does not exist.</p>
+    </section>
+  )}
+</Layout>

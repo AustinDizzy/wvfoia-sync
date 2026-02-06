@@ -1,0 +1,117 @@
+---
+export const prerender = false;
+
+import Layout from "$/layouts/Layout.astro";
+import EntriesTable from "$/components/EntriesTable.astro";
+import { createDbContext } from "$/lib/db/context";
+import { homeStats, latestEntriesByLastReportedDate } from "$/lib/data";
+import { href } from "$/lib/links";
+import { formatDate, fmtNumber } from "$/lib/utils";
+
+const ctx = createDbContext(Astro.locals.runtime.env);
+const entriesHref = href("entries");
+
+function isoDate(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function completionWindowHref(days: number): string {
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(now.getDate() - days);
+  return href("entries", {
+    completionDateFrom: isoDate(from),
+    completionDateTo: isoDate(now)
+  });
+}
+
+const entries30dHref = completionWindowHref(30);
+const entries90dHref = completionWindowHref(90);
+const entries365dHref = completionWindowHref(365);
+
+let stats: Awaited<ReturnType<typeof homeStats>> | null = null;
+let latest: Awaited<ReturnType<typeof latestEntriesByLastReportedDate>> = { date: null, entries: [] };
+let dbError = "";
+
+try {
+  [stats, latest] = await Promise.all([
+    homeStats(ctx),
+    latestEntriesByLastReportedDate(ctx)
+  ]);
+} catch (error) {
+  dbError = error instanceof Error ? error.message : "Database is not initialized.";
+}
+
+type SummaryPeriod = { label: string; value: string; href?: string };
+type SummaryCard = { title: string; main: string; mainHref?: string; periods: SummaryPeriod[] };
+const summaryCards: SummaryCard[] = stats
+  ? [
+      {
+        title: "total requests",
+        main: stats.totalAll.toLocaleString(),
+        mainHref: entriesHref,
+        periods: [
+          { label: "30d", value: stats.total30d.toLocaleString(), href: entries30dHref },
+          { label: "90d", value: stats.total90d.toLocaleString(), href: entries90dHref },
+          { label: "365d", value: stats.total365d.toLocaleString(), href: entries365dHref }
+        ]
+      },
+      {
+        title: "avg response time",
+        main: `${fmtNumber(stats.avgAll)}d`,
+        periods: [
+          { label: "30d", value: `${fmtNumber(stats.avg30d)}d` },
+          { label: "90d", value: `${fmtNumber(stats.avg90d)}d` },
+          { label: "365d", value: `${fmtNumber(stats.avg365d)}d` }
+        ]
+      }
+    ]
+  : [];
+---
+
+<Layout title="wvfoia-sync">
+  <section class="space-y-6">
+    {dbError || !stats ? (
+      <div class="rounded-lg border border-border bg-surface p-4 text-sm text-amber-700 shadow-sm">D1 not ready: {dbError || "Database is not initialized."}</div>
+    ) : (
+      <>
+        <div class="grid gap-3 lg:grid-cols-2">
+          {summaryCards.map((card) => (
+            <div class="rounded-lg border border-border bg-surface p-4 shadow-sm">
+              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+                <div>
+                  <div class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">{card.title}</div>
+                  <div class="text-[clamp(1.8rem,5vw,2.25rem)] font-semibold leading-tight">
+                    {card.mainHref ? <a class="link-hover" href={card.mainHref}>{card.main}</a> : card.main}
+                  </div>
+                </div>
+                <div class="space-y-2 border-l border-border pl-3">
+                  {card.periods.map((period) => (
+                    <div class="flex items-baseline gap-2 whitespace-nowrap">
+                      <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{period.label}</div>
+                      <div class="text-base font-semibold">{period.href ? <a class="link-hover" href={period.href}>{period.value}</a> : period.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <section class="rounded-lg border border-border bg-surface shadow-sm">
+          <div class="flex flex-col gap-1 p-4 sm:flex-row sm:items-baseline sm:gap-3">
+            <h2 class="font-mono text-sm">latest entries</h2>
+            <div class="text-xs text-muted">{latest.entries.length.toLocaleString()} requests reported on {formatDate(latest.date)}</div>
+          </div>
+
+          <div class="overflow-x-auto border-t border-border [-webkit-overflow-scrolling:touch]">
+            <EntriesTable entries={latest.entries} />
+          </div>
+        </section>
+      </>
+    )}
+  </section>
+</Layout>

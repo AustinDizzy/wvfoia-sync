@@ -1,0 +1,64 @@
+---
+export const prerender = false;
+
+import Layout from "$/layouts/Layout.astro";
+import StatusBadge from "$/components/StatusBadge.astro";
+import { createDbContext } from "$/lib/db/context";
+import { getEntryById } from "$/lib/data";
+import { href } from "$/lib/links";
+import { diffHuman, formatCurrency, formatDate, formatRequestor, slugify } from "$/lib/utils";
+
+const idParam = Astro.params.id ?? "";
+const validId = /^\d+$/.test(idParam);
+const ctx = createDbContext(Astro.locals.runtime.env);
+const entry = validId ? await getEntryById(ctx, Number(idParam)) : null;
+const cleanedDetails = (entry?.details || "--").replace(/^['"]|['"]$/g, "");
+
+if (!entry) {
+  Astro.response.status = 404;
+}
+---
+
+<Layout title={entry ? `entry ${entry.id} - wvfoia-sync` : "not found - wvfoia-sync"}>
+  {entry && (
+    <section class="space-y-4">
+      <h1 class="font-mono text-xl leading-7 font-semibold">entry #{entry.id}</h1>
+      <div class="grid lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 space-y-4 rounded-lg border border-border bg-surface p-4 shadow-sm [&>div>div:first-child]:mb-1 [&>div>div:first-child]:block [&>div>div:first-child]:font-mono [&>div>div:first-child]:text-[11px] [&>div>div:first-child]:uppercase [&>div>div:first-child]:tracking-wide [&>div>div:first-child]:text-muted">
+          <div><div>subject</div><div>{entry.subject || "--"}</div></div>
+          <div><div>details</div><div class="whitespace-pre-wrap">{cleanedDetails}</div></div>
+          <div><div>response</div><div class="whitespace-pre-wrap">{entry.response || "--"}</div></div>
+        </div>
+        <aside class="space-y-3 rounded-lg border border-border bg-surface p-4 text-sm shadow-sm [&>div>div:first-child]:mb-1 [&>div>div:first-child]:block [&>div>div:first-child]:font-mono [&>div>div:first-child]:text-[11px] [&>div>div:first-child]:uppercase [&>div>div:first-child]:tracking-wide [&>div>div:first-child]:text-muted">
+          <div><div>requestor</div><div>{formatRequestor(entry)}</div></div>
+          <div><div>agency</div><a class="link" href={href(`agencies/${slugify(entry.agency)}`)}>{entry.agency}</a></div>
+          <div><div>resolution</div><StatusBadge resolution={entry.resolution} /></div>
+          <div><div>request date</div><div>{formatDate(entry.request_date)}</div></div>
+          <div><div>completion date</div><div>{formatDate(entry.completion_date)}</div></div>
+          <div><div>time to complete</div><div>{diffHuman(entry.request_date, entry.completion_date)}</div></div>
+          <div><div>fee</div><div>{formatCurrency(entry.fee)}</div></div>
+        </aside>
+      </div>
+      <div class="flex justify-end">
+        <a
+          class="link-hover inline-flex items-center gap-1 text-xs text-muted transition-colors"
+          href={`https://erls.wvsos.gov/FOIA_Entry/SearchedEntryDetails?entryId=${entry.id}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Open in WVSOS database</span>
+          <svg viewBox="0 0 20 20" class="h-3 w-3 fill-current" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M11 3a1 1 0 100 2h2.586L8.293 10.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"></path>
+            <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-4a1 1 0 10-2 0v4H5V7h4a1 1 0 100-2H5z"></path>
+          </svg>
+        </a>
+      </div>
+    </section>
+  )}
+  {!entry && (
+    <section class="space-y-2">
+      <h1 class="font-mono text-xl leading-7 font-semibold">not found</h1>
+      <p>That record or page does not exist.</p>
+    </section>
+  )}
+</Layout>

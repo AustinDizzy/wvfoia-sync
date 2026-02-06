@@ -1,0 +1,150 @@
+{
+    "entries": {
+        "52803": {
+            "completion_date": "2025-02-24"
+        },
+        "22952": {
+            "request_date": "2020-02-27"
+        },
+        "16715": {
+            "request_date": "2018-11-26"
+        },
+        "26775": {
+            "completion_date": "2021-03-30"
+        },
+        "33076": {
+            "request_date": "2022-04-19"
+        },
+        "20741": {
+            "request_date": "2019-08-06"
+        },
+        "579": {
+            "request_date": "2016-01-20"
+        },
+        "752": {
+            "request_date": "2016-02-19"
+        },
+        "14388": {
+            "request_date": "2018-06-19",
+            "completion_date": "2018-06-26"
+        },
+        "5591": {
+            "request_date": "2016-12-01"
+        },
+        "51804": {
+            "request_date": "2024-12-27",
+            "completion_date": "2024-12-31"
+        },
+        "9445": {
+            "request_date": "2017-08-31"
+        },
+        "14601": {
+            "request_date": "2018-07-17"
+        },
+        "10501": {
+            "completion_date": "2016-08-14"
+        },
+        "6819": {
+            "completion_date": "2017-04-07"
+        },
+        "14177": {
+            "completion_date": "2018-06-25"
+        },
+        "3099": {
+            "request_date": "2015-12-17",
+            "completion_date": "2016-07-28"
+        },
+        "43682": {
+            "completion_date": "2023-10-20"
+        },
+        "34992": {
+            "completion_date": "2022-09-02"
+        },
+        "43317": {
+            "completion_date": "2023-11-29"
+        },
+        "43543": {
+            "completion_date": "2023-04-13"
+        },
+        "51854": {
+            "completion_date": "2025-01-02"
+        },
+        "43226": {
+            "completion_date": "2023-11-30"
+        }
+    },
+    "agencies": {
+        "Department of Environmental Protection": [
+            "DEP",
+            "WV Dep"
+        ],
+        "WV Board of Medicine": [
+            "Medicine, Board of",
+            "West Virginia Board of Medicine"
+        ],
+        "WV School of Osteopathic Medicine": [
+            "WVSOM",
+            "West Virginia School of Osteopathic Medicine"
+        ],
+        "Berkeley County Sheriff's Office": [
+            "Berkeley County Sheriffs Office"
+        ],
+        "Berkeley County Circuit Clerk": [
+            "Berkeley Co Circuit Clerk",
+            "Berkeley County Circuit Clerk's Office"
+        ],
+        "Fairmont State University": [
+            "Fairmont State University Business Office, Procurement",
+            "Fairmont State University Human Resources Office"
+        ],
+        "WV Department of Revenue":  [
+            "Revenue",
+            "Department of Revenue",
+            "WV Dept of Revenue"
+        ],
+        "West Virginia Alcohol Beverage Control Administration": [
+            "WV Alcohol Beverage Control Administration",
+            "WVABCA",
+            "Department of Revenue Abca"
+        ],
+        "City of Charles Town Police Department": [
+            "City of Charles Town Police Dept",
+            "City of Charles Town Police",
+            "City of Charles Town Pd",
+            "Charles Town Police Department"
+        ],
+        "Kanawha County Metro 911": [
+            "Metro 911 of Kanawha County",
+            "Kanawha County Commission Metro 911",
+            "Kanawha Co. Metro 911"
+        ],
+        "Kanawha County Circuit Clerk's Office": [
+            "Kanawhacounty Circuit Clerk's Office"
+        ],
+        "West Virginia Division of Motor Vehicles": [
+            "WVDMV"
+        ],
+        "West Virginia University Medical Corporation dba University Health Associates": [
+            "University Health Associates"
+        ],
+        "Wetzel County Board of Education": [
+            "AmericWetzel County Board of Education"
+        ],
+        "WV Department of Human Services": [
+            "DoHS"
+        ],
+       "WV Secretary of State": [
+            "WVSOS",
+            "Secretary of State",
+            "West Virginia Secretary of State"
+       ],
+        "WV Division of Highways": [
+            "WVDOH",
+            "WV DOH",
+            "DOH",
+            "West Virginia Division of Highways",
+            "Division of Highways",
+            "WVDOT, Division of Highways, Legal Division"
+        ]
+    }
+}
