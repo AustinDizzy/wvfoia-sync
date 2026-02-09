@@ -19,6 +19,7 @@ jobs:
       R2_BUCKET: ${{ vars.R2_BUCKET || 'wvfoia-sync' }}
       SQL_OBJECT_KEY: ${{ vars.SQL_OBJECT_KEY || 'wvfoia.sql' }}
       SQLITE_OBJECT_KEY: ${{ vars.SQLITE_OBJECT_KEY || 'wvfoia.db' }}
+      BOOKMARK_OBJECT_KEY: ${{ vars.BOOKMARK_OBJECT_KEY || 'wvfoia-bookmark.txt' }}
 
     steps:
       - name: Checkout
@@ -28,8 +29,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Ensure sqlite3 is available
         run: |
@@ -58,64 +57,30 @@ jobs:
           echo "bookmark=$CURRENT_BOOKMARK" >> "$GITHUB_OUTPUT"
           echo "current_bookmark_file=$CURRENT_BOOKMARK_FILE" >> "$GITHUB_OUTPUT"
 
-      - name: Find previous state artifact
-        id: find_state
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const workflowId = "export-db-sqlite.yml";
-            let latestArtifact = null;
-            let latestArtifactRunId = "";
+      - name: Load previous bookmark from R2
+        run: |
+          set -euo pipefail
+          PREVIOUS_BOOKMARK_FILE="$RUNNER_TEMP/previous-bookmark.txt"
 
-            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
-              owner,
-              repo,
-              workflow_id: workflowId,
-              status: "success",
-              per_page: 100
-            });
-
-            for (const run of runs) {
-              const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
-                owner,
-                repo,
-                run_id: run.id,
-                per_page: 100
-              });
-              const match = artifacts.find((artifact) => artifact.name === "d1-export-state" && !artifact.expired);
-              if (match) {
-                latestArtifact = match;
-                latestArtifactRunId = String(run.id);
-                break;
-              }
-            }
-
-            core.setOutput("artifact_id", latestArtifact ? String(latestArtifact.id) : "");
-            core.setOutput("artifact_run_id", latestArtifactRunId);
-
-      - name: Download previous state artifact
-        if: steps.find_state.outputs.artifact_id != ''
-        uses: actions/download-artifact@v4
-        with:
-          github-token: ${{ github.token }}
-          artifact-ids: ${{ steps.find_state.outputs.artifact_id }}
-          run-id: ${{ steps.find_state.outputs.artifact_run_id }}
-          path: ${{ runner.temp }}/previous-state
+          if npx wrangler r2 object get "$R2_BUCKET/$BOOKMARK_OBJECT_KEY" --remote --file "$PREVIOUS_BOOKMARK_FILE"; then
+            echo "PREVIOUS_BOOKMARK_FILE=$PREVIOUS_BOOKMARK_FILE" >> "$GITHUB_ENV"
+          else
+            echo "No previous bookmark object found in R2."
+          fi
 
       - name: Compare bookmark with previous state
         id: bookmark
         run: |
           set -euo pipefail
           CURRENT_BOOKMARK="${{ steps.current_bookmark.outputs.bookmark }}"
-          PREVIOUS_STATE_DIR="$RUNNER_TEMP/previous-state"
-          PREVIOUS_BOOKMARK_FILE="$PREVIOUS_STATE_DIR/current-bookmark.txt"
+          PREVIOUS_BOOKMARK_FILE="${PREVIOUS_BOOKMARK_FILE:-}"
           PREVIOUS_BOOKMARK=""
 
-          if [ -f "$PREVIOUS_BOOKMARK_FILE" ]; then
+          if [ -n "$PREVIOUS_BOOKMARK_FILE" ] && [ -f "$PREVIOUS_BOOKMARK_FILE" ]; then
             PREVIOUS_BOOKMARK="$(tr -d '\r\n' < "$PREVIOUS_BOOKMARK_FILE")"
           fi
+
+          echo "current=$CURRENT_BOOKMARK previous=${PREVIOUS_BOOKMARK:-<none>}"
 
           if [ -n "$PREVIOUS_BOOKMARK" ] && [ "$CURRENT_BOOKMARK" = "$PREVIOUS_BOOKMARK" ]; then
             echo "No DB changes detected. Skipping export."
@@ -124,7 +89,6 @@ jobs:
             echo "DB change detected. Export will run."
             echo "should_export=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "CURRENT_BOOKMARK_FILE=${{ steps.current_bookmark.outputs.current_bookmark_file }}" >> "$GITHUB_ENV"
 
       - name: Export D1 and build SQLite
         if: steps.bookmark.outputs.should_export == 'true'
@@ -132,8 +96,15 @@ jobs:
           set -euo pipefail
           SQL_FILE="$RUNNER_TEMP/wvfoia.sql"
           SQLITE_FILE="$RUNNER_TEMP/wvfoia.db"
+          ENTRIES_DATA_SQL="$RUNNER_TEMP/wvfoia-entries-data.sql"
 
-          npx wrangler d1 export "$D1_DATABASE_NAME" --remote --output "$SQL_FILE"
+          npx wrangler d1 export "$D1_DATABASE_NAME" \
+            --remote \
+            --table entries \
+            --no-schema \
+            --output "$ENTRIES_DATA_SQL"
+
+          cat migrations/0001_init.sql migrations/0002_fts.sql "$ENTRIES_DATA_SQL" > "$SQL_FILE"
           sqlite3 "$SQLITE_FILE" < "$SQL_FILE"
           sqlite3 "$SQLITE_FILE" "PRAGMA optimize; VACUUM;"
 
@@ -162,13 +133,15 @@ jobs:
             --content-disposition "attachment; filename=\"$SQLITE_FILENAME\"" \
             --cache-control "public, max-age=300"
 
-      - name: Save export state bookmark
+      - name: Save current bookmark to R2
         if: steps.bookmark.outputs.should_export == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: d1-export-state
-          path: ${{ env.CURRENT_BOOKMARK_FILE }}
-          retention-days: 90
+        run: |
+          set -euo pipefail
+          npx wrangler r2 object put "$R2_BUCKET/$BOOKMARK_OBJECT_KEY" \
+            --remote \
+            --file "${{ steps.current_bookmark.outputs.current_bookmark_file }}" \
+            --content-type "text/plain" \
+            --cache-control "no-store"
 
       - name: Upload SQL/SQLite run artifacts
         if: steps.bookmark.outputs.should_export == 'true'
