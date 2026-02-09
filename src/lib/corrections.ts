@@ -46,7 +46,14 @@ export function normalizeAgencyName(agency: string): string {
   const canonical = canonicalAgencyMatch(agency);
   if (canonical) return canonical;
   const normalizedSpacing = agency.replace(/\s+/g, " ").trim();
-  return titlify(normalizedSpacing.toLowerCase(), true).replace(/\bWv\b/g, "WV");
+  const preservedMcTokens = new Map<string, string>();
+  for (const token of normalizedSpacing.match(/\bMc[A-Z][A-Za-z]*\b/g) ?? []) {
+    preservedMcTokens.set(token.toLowerCase(), token);
+  }
+  const normalized = titlify(normalizedSpacing.toLowerCase(), true)
+    .replace(/\bMc[a-z]+\b/g, (token) => preservedMcTokens.get(token.toLowerCase()) ?? token)
+    .replace(/\bWv\b/g, "WV");
+  return normalized;
 }
 
 export function agencyNameCandidates(agency: string): string[] {
