@@ -3,8 +3,8 @@
   "name": "wvfoia-sync",
   "main": "./worker.mjs",
   "routes": [
-    "l.abs.codes/wvfoia-sync",
-    "l.abs.codes/wvfoia-sync/*"
+    "l.abs.codes/wvfoia",
+    "l.abs.codes/wvfoia/*"
   ],
   "workers_dev": false,
   "compatibility_date": "2026-02-05",
