@@ -206,7 +206,17 @@ const chartWindowOptions = [
       </div>
 
       <div class="flex items-center justify-between gap-3 flex-wrap">
-        <h2 class="font-mono text-sm">entries ({pageData.total.toLocaleString()})</h2>
+        <div class="flex items-center gap-3">
+          <h2 class="font-mono text-sm">entries ({pageData.total.toLocaleString()})</h2>
+          <a class="link inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide" href={href(`agencies/${agency.slug}/feed.xml`)}>
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4.5a1.5 1.5 0 0 0 0 3A12 12 0 0 1 16.5 20a1.5 1.5 0 0 0 3 0A15 15 0 0 0 4 4.5Z"></path>
+              <path d="M4 10a1.5 1.5 0 0 0 0 3 6.5 6.5 0 0 1 6.5 6.5 1.5 1.5 0 0 0 3 0A9.5 9.5 0 0 0 4 10Z"></path>
+              <circle cx="5.25" cy="18.75" r="1.75"></circle>
+            </svg>
+            RSS
+          </a>
+        </div>
         <form method="get" class="flex items-end gap-3">
           <div>
             <label class="mb-1 block font-mono text-[11px] uppercase tracking-wide text-muted">Sort</label>

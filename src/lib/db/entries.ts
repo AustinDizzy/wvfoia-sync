@@ -4,7 +4,7 @@ import type { Entry, EntrySearchOptions, HomeStats, LatestEntriesSnapshot, PageC
 import { ENTRY_SORT_OPTIONS, diffDays } from "$/lib/utils";
 import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { withQueryResultCache } from "$/lib/db/query-cache";
-import { AGENCY_ENTRIES_CACHE_TTL_SECONDS } from "$/lib/db/constants";
+import { AGENCY_ENTRIES_CACHE_TTL_SECONDS, LATEST_ENTRIES_SNAPSHOT_CACHE_TTL_SECONDS } from "$/lib/db/constants";
 import { correctedDateExpr, normalizeEntry, resolveAgencyAliases } from "$/lib/db/shared";
 
 const FTS_TABLE_NAME = "entries_fts";
@@ -150,23 +150,31 @@ export async function getLatestEntryId(ctx: DbContext): Promise<number> {
 }
 
 export async function latestEntriesByLastReportedDate(ctx: DbContext): Promise<LatestEntriesSnapshot> {
-  const latestRows = await ctx.orm.select({ latest_date: sql<string | null>`MAX(${entries.entry_date})` })
-    .from(entries)
-    .where(and(isNotNull(entries.entry_date), ne(entries.entry_date, "")));
-  const latestDate = latestRows[0]?.latest_date ?? null;
-  if (!latestDate) {
-    return { date: null, entries: [] };
-  }
+  return withQueryResultCache(
+    ctx,
+    "latest-entries-by-last-reported-date",
+    LATEST_ENTRIES_SNAPSHOT_CACHE_TTL_SECONDS,
+    {},
+    async () => {
+      const latestRows = await ctx.orm.select({ latest_date: sql<string | null>`MAX(${entries.entry_date})` })
+        .from(entries)
+        .where(and(isNotNull(entries.entry_date), ne(entries.entry_date, "")));
+      const latestDate = latestRows[0]?.latest_date ?? null;
+      if (!latestDate) {
+        return { date: null, entries: [] };
+      }
 
-  const rows = await ctx.orm.select()
-    .from(entries)
-    .where(eq(entries.entry_date, latestDate))
-    .orderBy(sql`${entries.id} DESC`);
+      const rows = await ctx.orm.select()
+        .from(entries)
+        .where(eq(entries.entry_date, latestDate))
+        .orderBy(sql`${entries.id} DESC`);
 
-  return {
-    date: latestDate,
-    entries: rows.map((row) => normalizeEntry(row as unknown as Record<string, unknown>))
-  };
+      return {
+        date: latestDate,
+        entries: rows.map((row) => normalizeEntry(row as unknown as Record<string, unknown>))
+      };
+    }
+  );
 }
 
 export async function distinctResolutions(ctx: DbContext): Promise<string[]> {
