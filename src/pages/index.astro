@@ -7,6 +7,7 @@ import { createDbContext } from "$/lib/db/context";
 import { homeStats, latestEntriesByLastReportedDate } from "$/lib/data";
 import { href } from "$/lib/links";
 import { formatDate, fmtNumber } from "$/lib/utils";
+import logo from "$/assets/logo.png";
 
 const ctx = createDbContext(Astro.locals.runtime.env);
 const entriesHref = href("entries");
@@ -31,6 +32,19 @@ function completionWindowHref(days: number): string {
 const entries30dHref = completionWindowHref(30);
 const entries90dHref = completionWindowHref(90);
 const entries365dHref = completionWindowHref(365);
+const sqliteDownloadHref = href("wvfoia.db");
+const sqlDownloadHref = href("wvfoia.sql");
+
+const runtimeEnv = Astro.locals.runtime.env as {
+  PUBLIC_TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
+};
+const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA";
+const turnstileSiteKey = runtimeEnv.PUBLIC_TURNSTILE_SITE_KEY
+  ?? import.meta.env.PUBLIC_TURNSTILE_SITE_KEY
+  ?? (!import.meta.env.PROD ? TURNSTILE_TEST_SITE_KEY : undefined);
+const turnstileSecretConfigured = Boolean(runtimeEnv.TURNSTILE_SECRET_KEY || !import.meta.env.PROD);
+const downloadsEnabled = Boolean(turnstileSiteKey && turnstileSecretConfigured);
 
 let stats: Awaited<ReturnType<typeof homeStats>> | null = null;
 let latest: Awaited<ReturnType<typeof latestEntriesByLastReportedDate>> = { date: null, entries: [] };
@@ -74,6 +88,81 @@ const summaryCards: SummaryCard[] = stats
 
 <Layout title="wvfoia-sync">
   <section class="space-y-6">
+    {downloadsEnabled && (
+      <section class="py-1">
+        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-4">
+          <div class="flex items-stretch gap-3">
+            <div class="h-14 w-14 shrink-0 self-start rounded-lg border border-border bg-surface sm:h-full sm:w-12 sm:self-stretch">
+              <img src={logo.src} alt="" class="h-full w-full object-contain dark:invert dark:brightness-120 dark:contrast-85" />
+            </div>
+            <div class="space-y-1">
+              <p class="text-sm text-muted">
+                This website is a community-provided mirror of the <a href="https://erls.wvsos.gov/FOIA_Database/Search" class="link" target="_blank" rel="noreferrer">WVFOIA database</a> maintained by the <abbr title="West Virginia Secretary of State">WVSOS</abbr> under <a class="link" href="https://code.wvlegislature.gov/29b-1-3" target="_blank" rel="noreferrer">W.Va. Code 29B-1-3(f)</a>.
+              </p>
+              <p class="text-sm text-muted">
+                Code available on <a class="link" href="https://github.com/AustinDizzy/wvfoia-sync" target="_blank" rel="noreferrer">GitHub</a> under <a href="https://github.com/AustinDizzy/wvfoia-sync/blob/master/LICENSE" class="link" target="_blank" rel="noreferrer">GPLv3</a>. Data on this website published under <a href="http://opendatacommons.org/licenses/pddl/1.0/" class="link" target="_blank" rel="noreferrer">PDDL-1.0 (public domain)</a>.
+              </p>
+              <p class="text-sm text-muted">
+                Updates daily at 4AM Eastern.
+              </p>
+            </div>
+          </div>
+          <div class="w-full space-y-2 sm:w-[320px] sm:justify-self-end">
+            <div class="flex flex-col items-center gap-0.5 sm:items-end">
+              <div class="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm sm:justify-end">
+                <button
+                  class="link cursor-pointer"
+                  type="button"
+                  data-download-btn
+                  data-download-name="wvfoia.sql"
+                  data-download-url={sqlDownloadHref}
+                >
+                  wvfoia.sql
+                </button>
+                <button
+                  class="link cursor-pointer"
+                  type="button"
+                  data-download-btn
+                  data-download-name="wvfoia.db"
+                  data-download-url={sqliteDownloadHref}
+                >
+                  wvfoia.db
+                </button>
+              </div>
+              <div class="text-[11px] text-muted opacity-60">captcha required</div>
+            </div>
+            <form id="downloadVerifyForm" class="hidden space-y-2 rounded-md border border-border-soft bg-surface-muted px-2.5 py-2" method="post">
+              <div class="text-[11px] leading-snug text-muted">
+                Complete verification to download:
+                <span id="downloadTargetLabel" class="font-semibold text-fg"></span>
+              </div>
+              <div id="turnstileContainer"></div>
+              <div class="flex items-center justify-between gap-2">
+                <div id="downloadFormMessage" class="text-[11px] leading-snug text-muted">Waiting for challenge...</div>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    id="downloadCancelButton"
+                    type="button"
+                    class="link-hover cursor-pointer font-mono text-[10px] uppercase tracking-wide text-muted"
+                  >
+                    cancel
+                  </button>
+                  <button
+                    id="downloadSubmitButton"
+                    type="submit"
+                    class="link cursor-pointer font-mono text-[10px] uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled
+                  >
+                    download
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    )}
+
     {dbError || !stats ? (
       <div class="rounded-lg border border-border bg-surface p-4 text-sm text-amber-700 shadow-sm">D1 not ready: {dbError || "Database is not initialized."}</div>
     ) : (
@@ -114,4 +203,89 @@ const summaryCards: SummaryCard[] = stats
       </>
     )}
   </section>
+
+  {downloadsEnabled && (
+    <>
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+      <script is:inline define:vars={{ turnstileSiteKey }}>
+        (() => {
+          const form = document.getElementById("downloadVerifyForm");
+          if (!(form instanceof HTMLFormElement)) return;
+
+          const container = document.getElementById("turnstileContainer");
+          const label = document.getElementById("downloadTargetLabel");
+          const cancelButton = document.getElementById("downloadCancelButton");
+          const submitButton = document.getElementById("downloadSubmitButton");
+          const message = document.getElementById("downloadFormMessage");
+          const buttons = Array.from(document.querySelectorAll("[data-download-btn]"));
+
+          if (!(container instanceof HTMLElement) || !(label instanceof HTMLElement) || !(cancelButton instanceof HTMLButtonElement) || !(submitButton instanceof HTMLButtonElement) || !(message instanceof HTMLElement)) {
+            return;
+          }
+
+          let widgetId = null;
+
+          function setMessage(text) {
+            message.textContent = text;
+          }
+
+          function resetWidget() {
+            if (!window.turnstile || widgetId === null) return;
+            window.turnstile.reset(widgetId);
+          }
+
+          function closeForm() {
+            form.classList.add("hidden");
+            submitButton.disabled = true;
+            setMessage("Waiting for challenge...");
+            resetWidget();
+          }
+
+          function openForm(url, name) {
+            form.action = url;
+            label.textContent = name;
+            form.classList.remove("hidden");
+            submitButton.disabled = true;
+            setMessage("Complete the challenge to continue.");
+
+            if (!window.turnstile) {
+              setMessage("Waiting for challenge to load...");
+              return;
+            }
+
+            if (widgetId === null) {
+              widgetId = window.turnstile.render(container, {
+                sitekey: turnstileSiteKey,
+                theme: "auto",
+                callback() {
+                  submitButton.disabled = false;
+                  setMessage("Verification complete. Click download.");
+                },
+                "expired-callback"() {
+                  submitButton.disabled = true;
+                  setMessage("Verification expired. Please complete it again.");
+                },
+                "error-callback"() {
+                  submitButton.disabled = true;
+                  setMessage("Verification failed to load. Please retry.");
+                }
+              });
+            } else {
+              resetWidget();
+            }
+          }
+
+          for (const element of buttons) {
+            if (!(element instanceof HTMLButtonElement)) continue;
+            const url = element.dataset.downloadUrl;
+            const name = element.dataset.downloadName;
+            if (!url || !name) continue;
+            element.addEventListener("click", () => openForm(url, name));
+          }
+
+          cancelButton.addEventListener("click", closeForm);
+        })();
+      </script>
+    </>
+  )}
 </Layout>
