@@ -2,7 +2,7 @@
 
 This project mirrors the contents of the [(WV)FOIA Database maintained by the West Virginia Secretary of State's Office](https://erls.wvsos.gov/FOIA_Database/Search) to a SQLite(3) database.
 
-* https://l.abs.codes/wvfoia-sync
+* https://l.abs.codes/wvfoia
 
 The database is updated automatically every day at 4AM Eastern Time.
 
