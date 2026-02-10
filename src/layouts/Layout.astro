@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import ThemeToggle from "../components/ThemeToggle.astro";
+import { getLastUpdatedMeta } from "$/lib/db/meta";
 import { href } from "$/lib/links";
 
 interface Props {
@@ -17,6 +18,7 @@ const runtimeEnv = Astro.locals.runtime.env as {
   PUBLIC_ANALYTICS_SRC?: string;
   PUBLIC_ANALYTICS_SITE_ID?: string;
 };
+const { ago: lastDataUpdatedAgo, title: lastDataUpdatedTitle } = await getLastUpdatedMeta(Astro.locals);
 const analyticsSrc = runtimeEnv.PUBLIC_ANALYTICS_SRC ?? import.meta.env.PUBLIC_ANALYTICS_SRC;
 const analyticsSiteId = runtimeEnv.PUBLIC_ANALYTICS_SITE_ID ?? import.meta.env.PUBLIC_ANALYTICS_SITE_ID;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.url.origin).toString();
@@ -94,7 +96,7 @@ const websiteSchema = {
       <footer class="border-t border-border bg-surface">
         <div class="mx-auto flex w-full max-w-375 flex-wrap items-center justify-between gap-3 px-4 py-4 font-mono text-xs text-muted sm:gap-4">
           <div>
-            Data published as public record under <a class="link whitespace-nowrap" href="https://code.wvlegislature.gov/29b-1" target="_blank" rel="noreferrer">W.Va. Code §29B-1 et seq.</a>. <span class="whitespace-nowrap">Updates daily at 4AM Eastern.</span>
+            Data published as public record under <a class="link whitespace-nowrap" href="https://code.wvlegislature.gov/29b-1" target="_blank" rel="noreferrer">W.Va. Code §29B-1 et seq.</a>. <span class="inline-flex items-center gap-1 whitespace-nowrap"><span>Updates daily at 4AM Eastern.</span>{lastDataUpdatedAgo && <span class="text-[10px] text-muted opacity-75">(last updated <abbr title={lastDataUpdatedTitle}>{lastDataUpdatedAgo}</abbr>)</span>}</span>
           </div>
           <div class="flex w-full shrink-0 items-center justify-between gap-5 whitespace-nowrap sm:w-auto sm:justify-end sm:gap-7 lg:gap-8">
             <div class="pr-1 sm:pr-0">

@@ -4,6 +4,7 @@ export const prerender = false;
 import Layout from "$/layouts/Layout.astro";
 import EntriesTable from "$/components/EntriesTable.astro";
 import { createDbContext } from "$/lib/db/context";
+import { getLastUpdatedMeta } from "$/lib/db/meta";
 import { homeStats, latestEntriesByLastReportedDate } from "$/lib/data";
 import { href } from "$/lib/links";
 import { formatDate, fmtNumber } from "$/lib/utils";
@@ -39,6 +40,7 @@ const runtimeEnv = Astro.locals.runtime.env as {
   PUBLIC_TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
 };
+const { ago: lastDataUpdatedAgo, title: lastDataUpdatedTitle } = await getLastUpdatedMeta(Astro.locals);
 const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA";
 const turnstileSiteKey = runtimeEnv.PUBLIC_TURNSTILE_SITE_KEY
   ?? import.meta.env.PUBLIC_TURNSTILE_SITE_KEY
@@ -103,7 +105,14 @@ const summaryCards: SummaryCard[] = stats
                 Code available on <a class="link" href="https://github.com/AustinDizzy/wvfoia-sync" target="_blank" rel="noreferrer">GitHub</a> under <a href="https://github.com/AustinDizzy/wvfoia-sync/blob/master/LICENSE" class="link" target="_blank" rel="noreferrer">GPLv3</a>. Data on this website published under <a href="http://opendatacommons.org/licenses/pddl/1.0/" class="link" target="_blank" rel="noreferrer">PDDL-1.0 (public domain)</a>.
               </p>
               <p class="text-sm text-muted">
-                Updates daily at 4AM Eastern.
+                <span class="inline-flex items-center gap-1">
+                  <span>Updates daily at 4AM Eastern.</span>
+                  {lastDataUpdatedAgo && (
+                    <span class="whitespace-nowrap text-[11px] text-muted opacity-75">
+                      (last updated <abbr title={lastDataUpdatedTitle}>{lastDataUpdatedAgo}</abbr>)
+                    </span>
+                  )}
+                </span>
               </p>
             </div>
           </div>

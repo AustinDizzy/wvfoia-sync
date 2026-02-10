@@ -3,6 +3,7 @@ export const AGENCIES_PAGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 export const AGENCY_TIMELINE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 export const AGENCY_ENTRIES_CACHE_TTL_SECONDS = 60 * 60 * 24 * 3;
 export const AGENCY_ALIASES_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30;
+export const LAST_UPDATED_AT_CACHE_KEY = "meta:last_updated_at";
 
 export const AGENCY_METRIC_KEYS = [
   "requests",

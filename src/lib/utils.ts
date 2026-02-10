@@ -170,3 +170,38 @@ export function buildPageNumbers(currentPage: number, totalPages: number, maxPag
   pages.push(String(totalPages));
   return pages;
 }
+
+export function formatTimeAgo(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const deltaMs = Date.now() - date.getTime();
+  if (deltaMs < 60_000) return "just now";
+
+  const minuteMs = 60_000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+  const monthMs = 30 * dayMs;
+  const yearMs = 365 * dayMs;
+
+  if (deltaMs < hourMs) {
+    const minutes = Math.floor(deltaMs / minuteMs);
+    return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  }
+  if (deltaMs < dayMs) {
+    const hours = Math.floor(deltaMs / hourMs);
+    return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  }
+  if (deltaMs < monthMs) {
+    const days = Math.floor(deltaMs / dayMs);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  }
+  if (deltaMs < yearMs) {
+    const months = Math.floor(deltaMs / monthMs);
+    return `${months} month${months === 1 ? "" : "s"} ago`;
+  }
+
+  const years = Math.floor(deltaMs / yearMs);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
+}

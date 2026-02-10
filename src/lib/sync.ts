@@ -1,5 +1,6 @@
 import { parse, type HTMLElement } from "node-html-parser";
 import { getLatestEntryId } from "$/lib/data";
+import { LAST_UPDATED_AT_CACHE_KEY } from "$/lib/db/constants";
 import type { DbContext } from "$/lib/db/context";
 import type { Entry, SyncResult } from "$/lib/types";
 
@@ -198,9 +199,8 @@ export async function runSync(ctx: DbContext): Promise<SyncResult> {
     currentId += 1;
   }
 
-  if (added > 0) {
-    await flushQueryCaches(ctx.kv);
-  }
+  if (added > 0) await flushQueryCaches(ctx.kv);
+  await ctx.kv.put(LAST_UPDATED_AT_CACHE_KEY, new Date().toISOString());
 
   return {
     added,

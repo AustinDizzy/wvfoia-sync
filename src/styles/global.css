@@ -55,10 +55,14 @@
   @apply underline underline-offset-2 hover:text-accent focus-visible:text-accent dark:hover:text-accent-warm dark:focus-visible:text-accent-warm;
 }
 
-.link-hover {
+.link-hover, abbr[title] {
   @apply no-underline hover:text-accent focus-visible:text-accent dark:hover:text-accent-warm dark:focus-visible:text-accent-warm;
 }
 
 #agencyResolutionChartWrap canvas {
   @apply block w-full! h-full! max-w-full;
+}
+
+abbr[title] {
+  @apply cursor-pointer border-b border-dotted;
 }
