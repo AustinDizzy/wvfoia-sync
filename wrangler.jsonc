@@ -7,6 +7,7 @@
     "l.abs.codes/wvfoia/*"
   ],
   "workers_dev": false,
+  "keep_vars": true,
   "compatibility_date": "2026-02-05",
   "compatibility_flags": [
     "nodejs_compat",
@@ -15,11 +16,6 @@
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist"
-  },
-  "vars": {
-    "D1_DATABASE_ID": "5bc2c80e-3c26-4d1c-aa1e-45d3186a5997",
-    "PUBLIC_ANALYTICS_SRC": "https://tr.abs.codes/api/script.js",
-    "PUBLIC_ANALYTICS_SITE_ID": "851d9c76fcd7"
   },
   "d1_databases": [
     {
