@@ -10,6 +10,7 @@ export const prerender = false;
 
 const FEED_CACHE_CONTROL = "public, max-age=120, s-maxage=300, stale-while-revalidate=86400";
 const FEED_LIMIT = 100;
+const FEED_ROBOTS_TAG = "noindex, nofollow";
 
 const FEED_SEARCH: EntrySearchOptions = {
   search: "",
@@ -60,7 +61,8 @@ export const GET: APIRoute = async (context) => {
   return new Response(xml, {
     headers: {
       "content-type": "application/rss+xml; charset=utf-8",
-      "cache-control": FEED_CACHE_CONTROL
+      "cache-control": FEED_CACHE_CONTROL,
+      "x-robots-tag": FEED_ROBOTS_TAG
     }
   });
 };

@@ -7,12 +7,11 @@ import { href } from "$/lib/links";
 interface Props {
   title?: string;
   description?: string;
-  noindex?: boolean;
 }
 
 const site = "wvfoia";
 const defaultDescription = "Search and browse a mirror of the WVFOIA database.";
-const { title = site, description = defaultDescription, noindex } = Astro.props;
+const { title = site, description = defaultDescription } = Astro.props;
 
 const runtimeEnv = Astro.locals.runtime.env as {
   PUBLIC_ANALYTICS_SRC?: string;
@@ -22,21 +21,8 @@ const { ago: lastDataUpdatedAgo, title: lastDataUpdatedTitle } = await getLastUp
 const analyticsSrc = runtimeEnv.PUBLIC_ANALYTICS_SRC ?? import.meta.env.PUBLIC_ANALYTICS_SRC;
 const analyticsSiteId = runtimeEnv.PUBLIC_ANALYTICS_SITE_ID ?? import.meta.env.PUBLIC_ANALYTICS_SITE_ID;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.url.origin).toString();
-const basePrefix = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
-const pathWithinBase = Astro.url.pathname.startsWith(`${basePrefix}/`)
-  ? Astro.url.pathname.slice(basePrefix.length)
-  : Astro.url.pathname;
-const normalizedPath = pathWithinBase.replace(/\/+$/, "") || "/";
-const isIndexablePath = normalizedPath === "/"
-  || normalizedPath === "/agencies"
-  || /^\/agencies\/[^/]+$/.test(normalizedPath);
-const statusCode = Astro.response.status ?? 200;
-const shouldNoindex = noindex ?? (
-  statusCode >= 400
-  || Astro.url.search.length > 0
-  || !isIndexablePath
-);
-const robots = shouldNoindex ? "noindex,follow" : "index,follow";
+const robots = "noindex,nofollow";
+Astro.response.headers.set("x-robots-tag", robots);
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
