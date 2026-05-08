@@ -122,90 +122,92 @@ const chartWindowOptions = [
 <Layout title={agency ? `${agency.name} - wvfoia` : "not found - wvfoia"}>
   {agency && pageData ? (
     <section class="space-y-4">
-      <h1 class="font-mono text-xl leading-7 font-semibold">{agency.name}</h1>
+      <div class="space-y-4">
+        <h1 class="font-mono text-xl leading-7 font-semibold">{agency.name}</h1>
 
-      <div class="grid xl:grid-cols-12 gap-3">
-        <div class="xl:col-span-4 min-w-0">
-          <div class="rounded-lg border border-border bg-surface p-4 shadow-sm">
-            <div class="grid grid-cols-2 gap-3 items-start">
-              <div>
-                <div class="font-mono text-[11px] uppercase tracking-wide text-muted">total requests</div>
-                <div class="text-[clamp(1.9rem,6vw,2.25rem)] leading-tight font-semibold mt-2">{agency.requests.toLocaleString()}</div>
-                <div class="mt-2 text-[clamp(0.72rem,2.2vw,0.875rem)] text-muted">Avg response: <span class="font-medium text-fg">{fmtNumber(agency.avgResponseTime)} days</span></div>
-              </div>
-              <div class="border-l border-border pl-4">
-                {periodMetrics.map((section) => (
-                  <div class:list={[section.divider && "mt-4 pt-3 border-t border-border"]}>
-                    <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{section.title}</div>
-                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
-                      {section.items.map((item) => (
-                        <div>
-                          <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{item.label}</div>
-                          <div class="text-[clamp(1rem,3.8vw,1.25rem)] font-semibold leading-5">{item.value}</div>
-                        </div>
-                      ))}
+        <div class="grid gap-3 xl:grid-cols-12">
+          <div class="xl:col-span-4 min-w-0">
+            <div class="rounded-lg border border-border bg-surface p-4 shadow-sm">
+              <div class="grid grid-cols-2 gap-3 items-start">
+                <div>
+                  <div class="font-mono text-[11px] uppercase tracking-wide text-muted">total requests</div>
+                  <div class="text-[clamp(1.9rem,6vw,2.25rem)] leading-tight font-semibold mt-2">{agency.requests.toLocaleString()}</div>
+                  <div class="mt-2 text-[clamp(0.72rem,2.2vw,0.875rem)] text-muted">Avg response: <span class="font-medium text-fg">{fmtNumber(agency.avgResponseTime)} days</span></div>
+                </div>
+                <div class="border-l border-border pl-4">
+                  {periodMetrics.map((section) => (
+                    <div class:list={[section.divider && "mt-4 pt-3 border-t border-border"]}>
+                      <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{section.title}</div>
+                      <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        {section.items.map((item) => (
+                          <div>
+                            <div class="font-mono text-[11px] uppercase tracking-wide text-muted">{item.label}</div>
+                            <div class="text-[clamp(1rem,3.8vw,1.25rem)] font-semibold leading-5">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="xl:col-span-8 min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
-          <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-            <h2 class="font-mono text-sm">resolution activity (by completion date)</h2>
-            <div class="flex flex-wrap items-center gap-2">
-              <div class="mr-1 text-sm leading-5 text-muted"><span id="resolutionWindowTotal">{initialWindow.totalResolved.toLocaleString()}</span> shown</div>
-              {chartWindowOptions.map((windowOption) => {
-                const isActive = windowOption.key === "90";
-                return (
-                  <button
-                    type="button"
-                    data-chart-window={windowOption.key}
-                    data-active={isActive}
-                    aria-pressed={isActive}
-                    class="cursor-pointer rounded-md border px-2 py-1 font-mono text-xs sm:text-sm border-slate-300 hover:bg-slate-100 dark:border-[#4b4b4b] dark:hover:bg-[#1f1f1f] data-[active=true]:border-[#0f172a] data-[active=true]:bg-[#0f172a] data-[active=true]:text-white data-[active=true]:hover:bg-[#0f172a] dark:data-[active=true]:border-[#f1e9de] dark:data-[active=true]:bg-[#fdf9f3] dark:data-[active=true]:text-[#0e0e0e] dark:data-[active=true]:hover:bg-[#fdf9f3]"
-                  >{windowOption.label}</button>
-                );
-              })}
-            </div>
-          </div>
-          <div id="agencyResolutionChartWrap" class="h-[clamp(16rem,40vw,24rem)] w-full min-w-0 overflow-hidden" data-chart-windows={JSON.stringify(chartWindows)}>
-            <canvas id="agencyResolutionStacked"></canvas>
-          </div>
-          <div class="mt-6 border-t border-border pt-4">
-            <h3 class="font-mono text-sm mb-2">resolution breakdown</h3>
-            <div class="border border-border rounded-md bg-surface-muted p-2">
-              <div id="resolutionBreakdownBar" class="h-3 rounded-sm overflow-hidden flex">
-                {breakdownMeta.map(({ key, colorClass }) => {
-                  return <span data-breakdown-segment={key} class={`min-w-1 ${colorClass}`} aria-hidden="true"></span>;
-                })}
-              </div>
-              <div id="resolutionBreakdownLegend" class="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 text-xs">
-                {breakdownMeta.map(({ key, label, colorClass }) => {
-                  const item = initialWindow.breakdown.find((entry) => entry.key === key);
-                  const count = item?.count ?? 0;
-                  const pct = initialWindow.totalResolved > 0 ? (count / initialWindow.totalResolved) * 100 : 0;
+          <div class="xl:col-span-8 min-w-0 rounded-lg border border-border bg-surface p-4 shadow-sm">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+              <h2 class="font-mono text-sm">resolution activity (by completion date)</h2>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="mr-1 text-sm leading-5 text-muted"><span id="resolutionWindowTotal">{initialWindow.totalResolved.toLocaleString()}</span> shown</div>
+                {chartWindowOptions.map((windowOption) => {
+                  const isActive = windowOption.key === "90";
                   return (
-                    <div data-breakdown-key={key} class="rounded-sm border border-border px-2 py-1">
-                      <div class="flex items-center gap-1.5">
-                        <span class={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${colorClass}`}></span>
-                        <span class="font-mono leading-tight">{label}</span>
-                      </div>
-                      <div class="mt-0.5 pl-4 leading-tight text-muted lg:pl-0">
-                        <span data-breakdown-count>{count.toLocaleString()}</span> (<span data-breakdown-percent>{pct.toFixed(1)}</span>%)
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      data-chart-window={windowOption.key}
+                      data-active={isActive}
+                      aria-pressed={isActive}
+                      class="cursor-pointer rounded-md border px-2 py-1 font-mono text-xs sm:text-sm border-slate-300 hover:bg-slate-100 dark:border-[#4b4b4b] dark:hover:bg-[#1f1f1f] data-[active=true]:border-[#0f172a] data-[active=true]:bg-[#0f172a] data-[active=true]:text-white data-[active=true]:hover:bg-[#0f172a] dark:data-[active=true]:border-[#f1e9de] dark:data-[active=true]:bg-[#fdf9f3] dark:data-[active=true]:text-[#0e0e0e] dark:data-[active=true]:hover:bg-[#fdf9f3]"
+                    >{windowOption.label}</button>
                   );
                 })}
+              </div>
+            </div>
+            <div id="agencyResolutionChartWrap" class="h-[clamp(16rem,40vw,24rem)] w-full min-w-0 overflow-hidden" data-chart-windows={JSON.stringify(chartWindows)}>
+              <canvas id="agencyResolutionStacked"></canvas>
+            </div>
+            <div class="mt-6 border-t border-border pt-4">
+              <h3 class="font-mono text-sm mb-2">resolution breakdown</h3>
+              <div class="border border-border rounded-md bg-surface-muted p-2">
+                <div id="resolutionBreakdownBar" class="h-3 rounded-sm overflow-hidden flex">
+                  {breakdownMeta.map(({ key, colorClass }) => {
+                    return <span data-breakdown-segment={key} class={`min-w-1 ${colorClass}`} aria-hidden="true"></span>;
+                  })}
+                </div>
+                <div id="resolutionBreakdownLegend" class="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 text-xs">
+                  {breakdownMeta.map(({ key, label, colorClass }) => {
+                    const item = initialWindow.breakdown.find((entry) => entry.key === key);
+                    const count = item?.count ?? 0;
+                    const pct = initialWindow.totalResolved > 0 ? (count / initialWindow.totalResolved) * 100 : 0;
+                    return (
+                      <div data-breakdown-key={key} class="rounded-sm border border-border px-2 py-1">
+                        <div class="flex items-center gap-1.5">
+                          <span class={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${colorClass}`}></span>
+                          <span class="font-mono leading-tight">{label}</span>
+                        </div>
+                        <div class="mt-0.5 pl-4 leading-tight text-muted lg:pl-0">
+                          <span data-breakdown-count>{count.toLocaleString()}</span> (<span data-breakdown-percent>{pct.toFixed(1)}</span>%)
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <h2 class="font-mono text-sm">entries ({pageData.total.toLocaleString()})</h2>
           <a class="link inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide" href={href(`agencies/${agency.slug}/feed.xml`)}>
@@ -229,7 +231,7 @@ const chartWindowOptions = [
         </form>
       </div>
 
-      <div class="w-full overflow-x-auto rounded-lg border border-border bg-surface shadow-sm [-webkit-overflow-scrolling:touch]">
+      <div class="-mx-4 overflow-hidden border-y border-border bg-surface [-webkit-overflow-scrolling:touch] md:mx-0 md:overflow-x-auto md:rounded-lg md:border md:shadow-sm">
         <EntriesTable entries={pageData.entries} showAgency={false} />
       </div>
 
